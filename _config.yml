@@ -7,7 +7,8 @@ baseurl: ""  # Root directory
 permalink: /:year/:month/:day/:title/
 
 # Use a native GitHub Pages theme with dark appearance
-theme: jekyll-theme-slate
+theme: minima
+
 
 # Optional: RSS feed and sitemap for SEO
 plugins:
