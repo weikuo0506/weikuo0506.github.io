@@ -1,0 +1,24 @@
+.sidebar {
+    display: none !important;
+}
+
+.content {
+    margin-left: 0 !important;
+    max-width: 800px;
+    width: 100% !important;
+}
+
+body {
+    background-color: #121212 !important;
+    color: #e0e0e0 !important;
+    font-family: 'Courier New', Courier, monospace;
+}
+
+a {
+    color: #58a6ff !important;
+    text-decoration: none;
+}
+
+a:hover {
+    text-decoration: underline;
+}

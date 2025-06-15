@@ -15,3 +15,5 @@ exclude:
   - .DS_Store
   - .idea
 github_username: weikuo0506
+custom_css:
+  - assets/css/custom.css
