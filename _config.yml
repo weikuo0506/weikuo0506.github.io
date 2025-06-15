@@ -1,0 +1,17 @@
+title: "Kuo Wei's Blog"
+description: "A simple blog sharing thoughts on AI, software, and life."
+theme: jekyll-theme-minimal
+author: Kuo Wei
+email: WEIKUO0506@gmail.com
+permalink: /:year/:month/:day/:title/
+exclude:
+  - Gemfile
+  - Gemfile.lock
+  - README.md
+  - LICENSE
+  - vendor
+  - .jekyll-cache
+  - .sass-cache
+  - .DS_Store
+  - .idea
+github_username: weikuo0506
