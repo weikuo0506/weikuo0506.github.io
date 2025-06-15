@@ -1,29 +1,20 @@
 title: "Kuo Wei's Blog"
-description: "A simple blog sharing thoughts on AI, software, and life."
-email: WEIKUO0506@gmail.com
+description: "Thoughts on AI, software, and life."
 author: Kuo Wei
+email: WEIKUO0506@gmail.com
 url: "https://weikuo0506.github.io"
 baseurl: ""  # Root directory
 permalink: /:year/:month/:day/:title/
 
-# Use the Minimal Mistakes theme via GitHub Pages
-remote_theme: "mmistakes/minimal-mistakes"
+# Use a native GitHub Pages theme with dark appearance
+theme: jekyll-theme-slate
 
-# Dark skin style
-minimal_mistakes_skin: "dark"
-
-# Include custom CSS file
-custom_css:
-  - /assets/css/custom.css
-
-# GitHub Pages supported plugins
+# Optional: RSS feed and sitemap for SEO
 plugins:
   - jekyll-feed
   - jekyll-sitemap
-  - jekyll-remote-theme
 
-
-# Files and folders to exclude from build
+# Files to exclude from the build
 exclude:
   - Gemfile
   - Gemfile.lock
@@ -35,5 +26,5 @@ exclude:
   - .DS_Store
   - .idea
 
-# GitHub profile username
+# GitHub username for profile or linking
 github_username: weikuo0506
