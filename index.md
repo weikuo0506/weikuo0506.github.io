@@ -17,7 +17,6 @@ I specialize in building scalable, intelligent platforms across ad tech, data in
 - Led development of AI-powered creative tools using multimodal large models, driving top-performing US ad campaigns with 50K+ new users.
 - Built scalable, real-time cross-platform ad data pipelines, optimizing campaign efficiency and ROI.
 
----
 
 ### Alibaba · Hangzhou, China · 2017 – 2023
 
