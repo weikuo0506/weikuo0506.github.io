@@ -20,6 +20,8 @@ custom_css:
 plugins:
   - jekyll-feed
   - jekyll-sitemap
+  - jekyll-remote-theme
+
 
 # Files and folders to exclude from build
 exclude:
