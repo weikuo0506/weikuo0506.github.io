@@ -1,0 +1,6 @@
+/* Make main content area wider */
+.container {
+    max-width: 960px !important; /* Default is around 720px */
+    margin: 0 auto;
+    padding: 0 20px;
+}

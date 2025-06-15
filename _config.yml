@@ -28,3 +28,6 @@ exclude:
 
 # GitHub username for profile or linking
 github_username: weikuo0506
+
+custom_css:
+  - /assets/css/custom.css
