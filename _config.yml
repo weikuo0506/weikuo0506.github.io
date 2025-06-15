@@ -1,9 +1,27 @@
 title: "Kuo Wei's Blog"
 description: "A simple blog sharing thoughts on AI, software, and life."
-theme: jekyll-theme-minimal
-author: Kuo Wei
 email: WEIKUO0506@gmail.com
+author: Kuo Wei
+url: "https://weikuo0506.github.io"
+baseurl: ""  # Root directory
 permalink: /:year/:month/:day/:title/
+
+# Use the Minimal Mistakes theme via GitHub Pages
+remote_theme: "mmistakes/minimal-mistakes"
+
+# Dark skin style
+minimal_mistakes_skin: "dark"
+
+# Include custom CSS file
+custom_css:
+  - /assets/css/custom.css
+
+# GitHub Pages supported plugins
+plugins:
+  - jekyll-feed
+  - jekyll-sitemap
+
+# Files and folders to exclude from build
 exclude:
   - Gemfile
   - Gemfile.lock
@@ -14,6 +32,6 @@ exclude:
   - .sass-cache
   - .DS_Store
   - .idea
+
+# GitHub profile username
 github_username: weikuo0506
-custom_css:
-  - assets/css/custom.css
