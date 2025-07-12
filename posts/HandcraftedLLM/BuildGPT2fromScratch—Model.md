@@ -4,7 +4,7 @@
 
 We have already implemented Embedding and Multi-Head Attention, and now we will start implementing the complete gpt2. The overall architecture of gpt2 is as shown in[the following figure](https://medium.com/@vipul.koti333/from-theory-to-code-step-by-step-implementation-and-code-breakdown-of-gpt-2-model-7bde8d5cecda):
 
-![](https://p0-xtjj-private.juejin.cn/tos-cn-i-73owjymdk6/a601da06b6804a0cac90701d6a55a79f~tplv-73owjymdk6-jj-mark-v1:0:0:0:0:5o6Y6YeR5oqA5pyv56S-5Yy6IEAgd2Vpa3Vv:q75.awebp?policy=eyJ2bSI6MywidWlkIjoiMjc4MTEwNzg2MjY0MTk2NCJ9&rk3s=e9ecf3d6&x-orig-authkey=f32326d3454f2ac7e96d3d06cdbb035152127018&x-orig-expires=1752401768&x-orig-sign=dOR7Q8MfxWHsf9Rhaf%2BJdtXo%2F6I%3D)
+<img src="https://p0-xtjj-private.juejin.cn/tos-cn-i-73owjymdk6/a601da06b6804a0cac90701d6a55a79f~tplv-73owjymdk6-jj-mark-v1:0:0:0:0:5o6Y6YeR5oqA5pyv56S-5Yy6IEAgd2Vpa3Vv:q75.awebp?policy=eyJ2bSI6MywidWlkIjoiMjc4MTEwNzg2MjY0MTk2NCJ9&rk3s=e9ecf3d6&x-orig-authkey=f32326d3454f2ac7e96d3d06cdbb035152127018&x-orig-expires=1752401768&x-orig-sign=dOR7Q8MfxWHsf9Rhaf%2BJdtXo%2F6I%3D" width="1000px">
 
 Where:
 
