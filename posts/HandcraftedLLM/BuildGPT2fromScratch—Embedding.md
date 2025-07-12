@@ -1,31 +1,5 @@
 # Build GPT2 from Scratch — Embedding
 
-# Series Preface
-
-> What I cannot create, I do not understand.
->
-> *—— Richard* *Feynman*
-
--   The best way to understand large models should be to implement them from scratch by doing it yourself. The "large" in large models lies in the parameters (often dozens of billions), not in the amount of code (even very powerful models are only a few hundred lines of code). In this way, we can think about problems, discover problems, and solve problems while writing code.
-
--   This article does not delve into the underlying principles but provides the simplest possible implementation to facilitate an overall understanding of large models.
-
--   Referenced[the tutorials of Sebastian Raschka](https://www.manning.com/authors/sebastian-raschka)and[Andrej Karpathy](https://karpathy.ai/), reorganized them, and optimized the core code to make it simpler and clearer.
-
--   No prior experience, possess basic Python skills, and understand the basic operations of Pytorch and Tensor.
-
--   Resources: All code runs on a personal computer without the need for a GPU. All data used are publicly available datasets.
-
--   Series Articles: Will be divided into the following 5 articles
-
-    -   **[Handcrafted Large Model] Writing GPT2 from Scratch — Embedding**: Introduce how to go from text to token and then to vector; understand the concept of BPE; learn to use sliding window sampling; understand that the essence of Embedding is a table lookup operation; understand positional encoding.
-    -   [**Handcrafted Large Model] From Scratch: Writing GPT2 - Attention**: Understanding the Attention Mechanism, Masking Future Words, Dropout for Random Discarding, Implementing Single and Multi-Head Attention Mechanisms.
-    -   **[Handcrafted Large Model] Writing GPT2 from Scratch — Model**: Build the complete framework of GPT2, understand LayerNorm and ReLU activation, implement Transformer Block; use untrained GPT2 to complete text.
-    -   **[Handcrafted Large Model] Training GPT2 from Scratch:** Understanding Cross-Entropy, implementing the calculation of Loss on datasets and batches; implementing training code and training on an ultra-small dataset; implementing methods to control randomness in decoding, including temperature and top k; attempting to train on a larger dataset, and learning to save and load model parameters.
-    -   **[Handcrafted Large Model] Fine-tuning GPT2 from Scratch:** Manually load public model weights; fine-tune GPT2 using a tiny dataset to enable GPT2 to respond to instructions rather than complete text; evaluate the training results using locally run llama3.
-
-* * *
-
 The essence of large models is space mapping (Mapping Between Spaces) and space optimization (Optimization in Latent Space). The code of large models is essentially a function approximator that maps the input space to the output space; rather than directly programming to implement rules, large models search for the optimal solution in the parameter space (weights) through a large-scale training process, enabling the mapping function to fit the true distribution of the input and output.
 
 Embedding is the process of mapping the original input space, such as text, speech, images, videos, etc., to the intermediate space, the latent space.
