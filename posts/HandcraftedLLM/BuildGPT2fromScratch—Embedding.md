@@ -1,3 +1,5 @@
+# Build GPT2 from Scratch — Embedding
+
 # Series Preface
 
 > What I cannot create, I do not understand.

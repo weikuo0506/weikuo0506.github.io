@@ -1,3 +1,5 @@
+# Train GPT2 from Scratch
+
 Previously, we have learned how to write GPT-2 code from scratch and train it from scratch. However, as is well known, training large models is extremely expensive. In this article, instead of training the model ourselves, we will download the public weights of GPT-2 and directly load them into our own model, so that our model will instantly achieve the same level of intelligence as GPT-2.
 
 Additionally, even GPT-2 is merely the original base model, capable only of text completion and unable to respond to your instructions. We will teach the model how to follow instructions through fine-tuning.

@@ -1,3 +1,5 @@
+# Build GPT2 from Scratch — Model
+
 # GPT2 Model Architecture
 
 We have already implemented Embedding and Multi-Head Attention, and now we will start implementing the complete gpt2. The overall architecture of gpt2 is as shown in[the following figure](https://medium.com/@vipul.koti333/from-theory-to-code-step-by-step-implementation-and-code-breakdown-of-gpt-2-model-7bde8d5cecda):

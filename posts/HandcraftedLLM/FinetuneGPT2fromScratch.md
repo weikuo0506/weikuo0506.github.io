@@ -1,3 +1,5 @@
+# Finetune GPT2 from Scratch
+
 Previously, we have already implemented the complete GPT-2 code and used it to generate text, except that the model was spouting nonsense. Now we start training the model, injecting a bit of intelligence into it by conducting a very small sample training on a local computer.
 
 In the examples of this article, we used the public introduction on Wikipedia about [World War II ](https://en.wikipedia.org/wiki/World_War_II), which is only 10,000 words long. As mentioned earlier, training samples do not require any labeling (pretrain on unlabeled data), and the training process is an autoregressive process where targets are always shifted 1 token to the right compared to inputs.

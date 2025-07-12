@@ -1,3 +1,4 @@
+# Build GPT2 from Scratch — Attention
 # Understand Attention in an Intuitive Way
 
 Previously, we discussed token Embedding and position Embedding. However, embedding is essentially still a vector related to the token itself. Once training is completed, embedding becomes fixed weights. We need to introduce a new mechanism to focus on the dependencies between tokens, that is, the context in which the token resides.
