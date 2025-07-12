@@ -1,255 +1,1088 @@
-# Train GPT2 from Scratch
+# Finetune GPT2 from Scratch
 
-Previously, we have learned how to write GPT-2 code from scratch and train it from scratch. However, as is well known, training large models is extremely expensive. In this article, instead of training the model ourselves, we will download the public weights of GPT-2 and directly load them into our own model, so that our model will instantly achieve the same level of intelligence as GPT-2.
+Previously, we have already implemented the complete GPT-2 code and used it to generate text, except that the model was spouting nonsense. Now we start training the model, injecting a bit of intelligence into it by conducting a very small sample training on a local computer.
 
-Additionally, even GPT-2 is merely the original base model, capable only of text completion and unable to respond to your instructions. We will teach the model how to follow instructions through fine-tuning.
+In the examples of this article, we used the public introduction on Wikipedia about [World War II ](https://en.wikipedia.org/wiki/World_War_II), which is only 10,000 words long. As mentioned earlier, training samples do not require any labeling (pretrain on unlabeled data), and the training process is an autoregressive process where targets are always shifted 1 token to the right compared to inputs.
 
-# Understand Model Structure
+# Understand training targets
 
-The process of loading public weights is simple and boring, but most importantly, one must understand the structure of the model and ensure that their own model structure is compatible and consistent with the public weights.
+For training, the most important thing is to understand the training objectives.
 
-As shown below, you can view the model structure in detail, including the name and dimension of each parameter:
-
-```
-from gpt2_v2 import GPT2Model, GPT_CONFIG_124M, complete_text, generate_text_simple, tensor_to_text, text_to_tensor
-
-GPT_CONFIG_124M.update({"qkv_bias": True})
-model = GPT2Model(GPT_CONFIG_124M)
-for name, param in model.named_parameters():
-    print(name, param.shape)
-```
-
-> tok_emb.weight torch.Size([50257, 768])
->
-> pos_emb.weight torch.Size([1024, 768])
->
-> blocks.0.attn.W_Q.weight torch.Size([768, 768])
->
-> blocks.0.attn.W_Q.bias torch.Size([768])
->
-> blocks.0.attn.W_K.weight torch.Size([768, 768])
->
-> blocks.0.attn.W_K.bias torch.Size([768])
->
-> blocks.0.attn.W_V.weight torch.Size([768, 768])
->
-> blocks.0.attn.W_V.bias torch.Size([768])
->
-> blocks.0.attn.out_proj.weight torch.Size([768, 768])
->
-> blocks.0.attn.out_proj.bias torch.Size([768])
->
-> blocks.0.ff.layers.0.weight torch.Size([3072, 768])
->
-> blocks.0.ff.layers.0.bias torch.Size([3072])
->
-> blocks.0.ff.layers.2.weight torch.Size([768, 3072])
->
-> blocks.0.ff.layers.2.bias torch.Size([768])
->
-> blocks.0.ln1.weight torch.Size([768])
->
-> blocks.0.ln1.bias torch.Size([768])
->
-> blocks.0.ln2.weight torch.Size([768])
->
-> blocks.0.ln2.bias torch.Size([768])
->
-> .......[blocks 1-11 are omitted here]................
->
-> final_norm.weight torch.Size([768])
->
-> final_norm.bias torch.Size([768])
->
-> out_head.weight torch.Size([50257, 768])
-
-# Download and load GPT2 weights
-
-The process of downloading and loading is rather tedious, with almost all the work concentrated on parameter processing and assignment, which involves finding the names of the corresponding parameters in our model within the weights of GPT2, creating mappings, and assigning the correct parameters to the correct positions.
-
-The code is as follows:
+We directly read the samples, with each batch having 2 rows, a context size of 4, and load the training samples as follows:
 
 ```
-from tqdm import tqdm
-import urllib
-import os
-import json
-from urllib.parse import urljoin
-import tensorflow as tf
-import numpy as np
+from gpt2_v1 import dataloader_v1
 
-def download_file(url, destination):
-    def _attempt_download(download_url):
-        with urllib.request.urlopen(download_url) as response:
-            total_size = int(response.headers.get("Content-Length", 0))
-            if os.path.exists(destination) and os.path.getsize(destination) == total_size:
-                print(f"File already exists and is up-to-date: {destination}")
-                return True
-
-            with tqdm(total=total_size, unit="iB", unit_scale=True, desc=os.path.basename(download_url)) as pbar, \
-                 open(destination, "wb") as f:
-                for chunk in iter(lambda: response.read(1024), b""):
-                    f.write(chunk)
-                    pbar.update(len(chunk))
-            return True
-
-    try:
-        if _attempt_download(url):
-            return
-    except Exception as e:
-        print(f"Unexpected error: {e}")
-
-
-def load_gpt2_params_from_tf_ckpt(ckpt_path, settings):
-    # Initialize parameters dictionary with empty blocks for each layer
-    params = {"blocks": [{} for _ in range(settings["n_layer"])]}
-
-    # Iterate over each variable in the checkpoint
-    for name, _ in tf.train.list_variables(ckpt_path):
-        # Load the variable and remove singleton dimensions
-        variable_array = np.squeeze(tf.train.load_variable(ckpt_path, name))
-
-        # Process the variable name to extract relevant parts
-        variable_name_parts = name.split("/")[1:]  # Skip the 'model/' prefix
-
-        # Identify the target dictionary for the variable
-        target_dict = params
-        if variable_name_parts[0].startswith("h"):
-            layer_number = int(variable_name_parts[0][1:])
-            target_dict = params["blocks"][layer_number]
-
-        # Recursively access or create nested dictionaries
-        for key in variable_name_parts[1:-1]:
-            target_dict = target_dict.setdefault(key, {})
-
-        # Assign the variable array to the last key
-        last_key = variable_name_parts[-1]
-        target_dict[last_key] = variable_array
-
-    return params
-
-
-def download_and_load_gpt2(model_size, models_dir):
-    allowed_sizes = {"124M", "355M", "774M", "1558M"}
-    if model_size not in allowed_sizes:
-        raise ValueError(f"Model size must be one of {allowed_sizes}")
-
-    model_dir = os.path.join(models_dir, model_size)
-    os.makedirs(model_dir, exist_ok=True)
-
-    base_url = f"https://openaipublic.blob.core.windows.net/gpt-2/models/{model_size}/"
-
-    filenames = [
-        "checkpoint", "encoder.json", "hparams.json",
-        "model.ckpt.data-00000-of-00001", "model.ckpt.index",
-        "model.ckpt.meta", "vocab.bpe"
-    ]
-
-    for fname in filenames:
-        dst = os.path.join(model_dir, fname)
-        if os.path.exists(dst):
-            print(f"Already exists: {fname}, skipping download.")
-            continue
-        primary = urljoin(base_url, fname)
-        print(f"Downloading {fname} ...")
-        download_file(primary, dst)
-
-    tf_ckpt_path = tf.train.latest_checkpoint(model_dir)
-    with open(os.path.join(model_dir, "hparams.json"), "r", encoding="utf-8") as f:
-        settings = json.load(f)
-
-    params = load_gpt2_params_from_tf_ckpt(tf_ckpt_path, settings)
-    return settings, params
+with open("world_war_ii.txt", "r", encoding="utf-8") as f:
+    raw_text = f.read()
+dataloader = dataloader_v1(raw_text,batch_size=2, context_size=4,stride=1)
+data_iter = iter(dataloader)
+inputs, targets = next(data_iter)
+print("shape of input: ",inputs.shape)
+print("first step, input: \n", inputs,"\n targets: \n", targets)
 ```
 
-```
-settings, params = download_and_load_gpt2(model_size="124M", models_dir="gpt2")
-print("Settings:", settings)
-print("Params:", params.keys())
-```
-
-> Settings: {'n_vocab': 50257, 'n_ctx': 1024, 'n_embd': 768, 'n_head': 12, 'n_layer': 12}
+> shape of input: torch.Size([2, 4])
 >
-> Params: dict_keys(['blocks', 'b', 'g', 'wpe', 'wte'])
+> first step, input:
+>
+> tensor([[10603, 1810, 314, 393],
+>
+> [ 1810, 314, 393, 262]])
+>
+> targets:
+>
+> tensor([[1810, 314, 393, 262],
+>
+> [ 314, 393, 262, 3274]])
 
-It should be noted that the structure and dimensions of the model must be consistent; additionally, our parameter names are not exactly the same as those in the GPT2 weights.
+As can be seen, both input and targets are 2x4; and targets are offset by 1 compared to inputs.
 
-The following is the tedious process of copying parameters. To ensure no errors occur, we always first check whether the dimensions of the parameters are consistent, as follows:
+Let's reverse look up the vocabulary to convert token IDs into text for easy viewing, as follows:
+
+```
+from gpt2_v1 import tensor_to_text,build_tokenizer
+tokenizer = build_tokenizer()
+for i in range(inputs.size(0)):
+    text = tensor_to_text(inputs[i].unsqueeze(0), tokenizer)
+    print(f"Input {i}: {text}")
+
+for i in range(targets.size(0)):
+    text = tensor_to_text(targets[i].unsqueeze(0), tokenizer)
+    print(f"target {i}: {text}")
+```
+
+> Input 0: World War I or
+>
+> Input 1: War I or the
+>
+> target 0: War I or the
+>
+> target 1: I or the First
+
+As can be seen, targets are exactly offset by 1 token from inputs.
+
+Now, we input the inputs into the model for generation, as follows:
+
+```
+with torch.no_grad():
+    logits = model(inputs)
+probas = torch.softmax(logits, dim=-1)
+print("shape of logits: ",logits.shape)
+print("shape of probas: ",probas.shape)
+```
+
+> shape of logits: torch.Size([2, 4, 50257])
+>
+> shape of probas: torch.Size([2, 4, 50257])
+
+The obtained logits and the probas output after softmax are both [2, 4, 50257], where probas represents the corresponding probabilities of a total of 8 tokens (2 rows and 4 columns) in the 50257-dimensional vocabulary.
+
+As previously mentioned, let's find the id of the maximum value from the 50257 tokens of probas, then reverse look up the vocabulary, and return the corresponding token, as follows:
+
+```
+output_token_ids = torch.argmax(probas, dim=-1) # Replace probas with logits yield same result
+print("shape of output_token_ids: ",output_token_ids.shape)
+print("output_token_ids: \n",output_token_ids)
+
+for i in range(output_token_ids.size(0)):
+    text = tensor_to_text(output_token_ids[i].unsqueeze(0), tokenizer)
+    print(f"output {i}: {text}")
+```
+
+where argmax returns the index corresponding to the maximum value, so it directly reduces the dimension from 50257 to 1. The result is as follows:
+
+> shape of output_token_ids: torch.Size([2, 4])
+>
+> output_token_ids:
+>
+> tensor([[38491, 2448, 36069, 24862],
+>
+> [36397, 15489, 10460, 18747]])
+>
+> output 0: constants Per Rebels myriad
+>
+> output 1: Gathering bay 800array
+
+Recalling the above, our goal is:
+
+> target 0: War I or the
+>
+> target 1: I or the First
+
+However, it seems that the outputs are far from the targets; and the goal of our training is to make the output as close as possible to the target. In other words, we hope that in the output probas matrix, the probability of the target token is as large as possible, ideally 100%.
+
+Let's first take a look at the probability corresponding to target in the output probas matrix:
+
+```
+batch_size, seq_len = targets.shape
+target_probas = torch.empty(batch_size, seq_len)
+
+for text_idx in range(batch_size):
+    positions = torch.arange(seq_len)
+    print("targets: ", targets[text_idx])
+    #same as probas[0,[0,1,2,3],[1810,  314,  393,  262]], advanced indexing
+    target_probas[text_idx] = probas[text_idx, positions, targets[text_idx]]
+    print(f"Text {text_idx + 1} target_probas:", target_probas[text_idx])
+```
+
+> targets: tensor([1810, 314, 393, 262])
+>
+> Text 1 target_probas: tensor([9.9453e-06, 1.9495e-05, 1.4662e-05, 1.8303e-05])
+>
+> targets: tensor([ 314, 393, 262, 3274])
+>
+> Text 2 target_probas: tensor([1.6926e-05, 2.1331e-05, 1.0184e-05, 1.8939e-05])
+
+As can be seen, the probability of target is below e-5, which is really too low; this is also why the model is talking nonsense, because the probability of target is too low, and the output is too far from the target, and our goal is to make the output as close to the target as possible.
+
+# Cross-Entropy Loss
+
+So, how exactly do we measure the distance between output and target?
+
+In the above example, the distribution of the target word of text 1 in the output probas matrix is:
+
+> y_predict:
+>
+> [9.9453e-06, P1,.........P20256]
+>
+> [1.9495e-05, P1,.........P20256]
+>
+> [1.4662e-05, P1,.........P20256]
+>
+> [1.8303e-05, P1,.........P20256]
+
+Here, for the convenience of presentation, we move the position of target_token to the front of the matrix; there are 50257 - 1 = 50256 other values after the ellipsis, but we don't care about these other values because they are not our target; and the sum of all these values is exactly 1 (this is guaranteed by the softmax function).
+
+So what is our goal? The goal is that the probability of the target word should be 1, and all others should be 0, that is:
+
+> y_true:
+>
+> [1, 0, 0, ....... 0]
+>
+> [1, 0, 0, ....... 0]
+>
+> [1, 0, 0, ....... 0]
+>
+> [1, 0, 0, ....... 0]
+
+Therefore, the key issue becomes how to measure the difference between the predicted distribution and the true distribution.
+
+Now we introduce the definition of cross entropy:
+
+> For a single classification sample, assume:
+>
+> -   True label (one-hot):
+      >
+      >     -     $$\mathbf{y} = (y_1, y_2, \dots, y_C), \quad y_i \in \{0, 1\}$$
+>
+> -   Predicted probabilities:
+      >
+      >     -     $$\hat{\mathbf{y}} = (\hat{y}_1, \hat{y}_2, \dots, \hat{y}_C), \quad \sum_{i=1}^C \hat{y}_i = 1$$
+>
+> **Cross Entropy Loss (General Form)**
+>
+> $$\mathcal{L}(\mathbf{y}, \hat{\mathbf{y}}) = - \sum_{i=1}^C y_i \log(\hat{y}_i)$$
+>
+> If the true class is K, the formula simplifies to:
+>
+> $$\mathcal{L} = - \log(\hat{y}_k)$$
+
+It may seem a bit complicated at first glance, but in fact it is very simple. (The above log is the logarithm with base e, equivalent to In.)
+
+Briefly explain:
+
+1) The true label is one-hot, where the probability of the true value should be 100%, and all others should be 0; see y_true in the above example;
+
+2) Predict probabilities, where the sum of all probabilities is 1; see y_predict in the above example;
+
+3) The definition of cross entropy is -y_true*log(y_predict), and then sum them up.
+
+Still taking the above example:
+
+> y_predict: [9.9453e-06, P1,.........P20256]
+>
+> y_true:[1, 0, 0, ....... 0]
+
+Manual calculation is as follows:
+
+-1*log(9.9453e-06)+0*log(P1)+......+0*log(P20256) = -log(9.9453e-06)
+
+4) That is, it can be simplified to Loss = -log(y_k), where k is the number of the true value.
+
+Therefore, the definition of cross entropy is extremely concise, and the calculation process is extremely simple.
+
+The more rigorous definition, as well as the underlying mathematics and [information theory ](https://en.wikipedia.org/wiki/Cross-entropy)principles, will not be elaborated on here. It is truly remarkable to have invented and defined the uncertainty of information using such a concise formula. However, for us users, it is actually quite simple.
+
+The cross entropy here is actually the loss during the Model Training process, and our goal is to continuously minimize the loss as much as possible. Under completely ideal conditions, loss = -log(1) = 0.
+
+# Loss Over Batchs
+
+Above, we only calculated the cross entropy of a single token. However, during Model Training, what we actually care about is not the cross entropy of a single token, but the average value of all predicted tokens across all samples in a batch.
+
+is defined as follows:
+
+$$\mathcal{L}_{\text{batch}} = - \frac{1}{N} \sum_{n=1}^N \sum_{i=1}^C y_i^{(n)} \log \left( \hat{y}_i^{(n)} \right)$$
+
+Actually, it is constantly taking the average over the dimensions of sample and batch.
+
+Let's manually calculate the cross entropy of the above targets:
+
+```
+neg_log_probas = torch.log(target_probas) * -1
+print("loss matrix: ",neg_log_probas)
+loss = torch.mean(neg_log_probas)
+print("loss: ",loss)
+```
+
+> loss matrix: tensor([[11.5184, 10.8454, 11.1303, 10.9084],
+>
+> [10.9867, 10.7553, 11.4947, 10.8743]])
+>
+> loss: tensor(11.0642)
+
+It should be noted that the finally calculated loss is a scalar, because we keep taking the average and ultimately only obtain one loss.
+
+The PyTorch framework has already integrated the calculation of cross entropy loss, and you only need to call it, as shown below:
+
+```
+print("shape of inputs: ",logits.shape) #(batch_size, seq_len, vocab_size)
+print("shape of targets: ",targets.shape)
+print("targets: \n",targets) #(batch_size, seq_len)
+# inputs must be raw logits (unnormalized scores), NOT probabilities
+# inputs shape: (batch_size * seq_len, vocab_size)
+# targets shape: (batch_size * seq_len,), containing class indices
+loss = torch.nn.functional.cross_entropy(logits.view(-1,logits.size(-1)), targets.view(-1))
+print("loss: ",loss)
+```
+
+> shape of inputs: torch.Size([2, 4, 50257])
+>
+> shape of targets: torch.Size([2, 4])
+>
+> targets:
+>
+> tensor([[1810, 314, 393, 262],
+>
+> [ 314, 393, 262, 3274]])
+>
+> loss: tensor(11.0642)
+
+It can be seen that the result is the same as what we calculated manually.
+
+# Perplexity
+
+In Model Training, another commonly used metric is perplexity, and its definition is very simple:
+
+$$\mathrm{Perplexity} = e^{\mathcal{L}}$$
+
+That is, perplexity is the exponential of cross entropy loss.
+
+It is just a different form of expression. Intuitively, the smaller the perplexity, the better:
+
+1) Under ideal extreme conditions, loss = 0, perplexity = 1, indicating only 1 choice, and the model is nearly perfect.
+
+2) In the extreme worst-case scenario, loss=inf and perplexity=inf, indicating that there are an infinite number of choices for candidates, which is equivalent to the model randomly selecting from the vocabulary, and the model is close to random output. Of course, under normal circumstances, perplexity should not exceed the size of the vocabulary.
+
+We calculate the perplexity of the above example as follows:
+
+```
+perplexity = torch.exp(loss)
+#Note perplexity is larger than vocab_size, which is expected, since the model is not trained yet.
+print("perplexity: ",perplexity)
+```
+
+> perplexity: tensor(63842.8828)
+
+As can be seen, the perplexity has actually exceeded the size of the vocabulary (which is possible because it has not been trained yet), also indicating that our model is indeed randomly babbling.
+
+# Loss on data sets
+
+During the training process, what we are more concerned about is the loss of the large model on the entire training dataset and validation set.
+
+We process this short text, split it into a training dataset and a validation set, create their respective data loaders, and calculate the loss at the batch and data loader dimensions.
+
+First, simply read and process the text. The original text has many blank lines, and if they are not removed, the large model will learn many unnecessary spaces and blank lines; the processing is as follows:
+
+```
+# If you didn't clean the empty lines, LLM may learn to add too many blanks.
+def clean_text_remove_empty_lines(text: str) -> str:
+    lines = text.splitlines()
+    non_empty_lines = [line.strip() for line in lines if line.strip() != ""]
+    return "\n".join(non_empty_lines)
+
+with open("world_war_ii.txt", "r", encoding="utf-8") as f:
+    raw_text = f.read()
+cleaned_text = clean_text_remove_empty_lines(raw_text)
+
+print(cleaned_text[:200])
+tokens = tokenizer.encode(cleaned_text)
+print("Characters: ",len(cleaned_text))
+print("Tokens: ",len(tokens))
+```
+
+> World War I or the First World War (28 July 1914 – 11 November 1918), also known as the Great War, was a global conflict between two coalitions: the Allies (or Entente) and the Central Powers. Fightin
+>
+> Characters: 88775
+>
+> Tokens: 18134
+
+We use 80% of the text as the training dataset and the rest as the test set, and create data loaders respectively:
+
+```
+from gpt2_v1 import GPT_CONFIG_124M
+
+# Split text data into training and validation sets
+train_ratio = 0.8
+split_idx = int(len(cleaned_text) * train_ratio)
+train_data, val_data = cleaned_text[:split_idx], cleaned_text[split_idx:]
+print("Train data: ", len(train_data))
+print("Val data: ", len(val_data))
+
+torch.manual_seed(123)
+train_loader = dataloader_v1(
+    train_data, batch_size=2,
+    context_size=GPT_CONFIG_124M["context_length"],
+    stride=GPT_CONFIG_124M["context_length"],
+    drop_last=True, shuffle=True)
+val_loader = dataloader_v1(
+    val_data, batch_size=2,
+    context_size=GPT_CONFIG_124M["context_length"],
+    stride=GPT_CONFIG_124M["context_length"],
+    drop_last=False, shuffle=False)
+```
+
+> Train data: 71020
+>
+> Val data: 17755
+
+Simply check and verify the data dimensions:
+
+```
+print("Train dataloader: ", len(train_loader))
+train_first_batch = next(iter(train_loader))
+print(train_first_batch[0].shape, train_first_batch[1].shape)
+print("Val dataloader: ", len(val_loader))
+val_first_batch = next(iter(val_loader))
+print(val_first_batch[0].shape, val_first_batch[1].shape)
+```
+
+> Train dataloader: 7
+>
+> torch.Size([2, 1024]) torch.Size([2, 1024])
+>
+> Val dataloader: 2
+>
+> torch.Size([2, 1024]) torch.Size([2, 1024])
+
+As can be seen, the entire text has approximately 18,000 tokens in total. We take the first 18,000 * 80% = 14,400 tokens as the training dataset; each batch contains 2 samples; the maximum window size is 1024; therefore, the training dataset dataloader has 14,400 / 2 / 1024 = 7 batches. Correspondingly, the validation set has only 2 batches; so it is a very small dataset, intended solely for demonstration purposes.
+
+Then, we calculate the loss for each batch and at the entire loader level respectively, as follows:
+
+```
+def loss_batch(inputs, targets, model, device):
+    inputs, targets = inputs.to(device), targets.to(device)
+    logits = model(inputs)
+    loss = torch.nn.functional.cross_entropy(logits.flatten(0, 1), targets.flatten(0))
+    return loss
+
+
+def loss_loader(loader, model, device, num_batches=None):
+    if len(loader) == 0:
+        return float('nan')
+
+    total_loss = 0.0
+    # num_batches no more than len(loader), default to len(loader)
+    num_batches = min(num_batches or len(loader), len(loader))
+
+    for i, (inputs, targets) in enumerate(loader):
+        if i >= num_batches:
+            break
+        loss = loss_batch(inputs, targets, model, device)
+        total_loss += loss.item()
+
+    return total_loss / num_batches
+```
+
+Actually, the above code is constantly calculating the loss and then taking the average.
+
+Now, we can check the current model status. The initial losses for the test set and validation set are as follows:
+
+```
+# MPS may have some issues when training
+device = (
+    torch.device("cuda") if torch.cuda.is_available()
+    else torch.device("mps") if torch.backends.mps.is_available()
+    else torch.device("cpu")
+)
+
+model.to(device)
+torch.manual_seed(123)
+with torch.no_grad():
+    train_loss = loss_loader(train_loader, model, device)
+    val_loss = loss_loader(val_loader, model, device)
+print("Train loss: ", train_loss)
+print("Val loss: ", val_loss)
+```
+
+> Train loss: 11.00249263218471
+>
+> Val loss: 10.98751163482666
+
+As can be seen, the loss is very high; this is as expected, after all, our model has not undergone any training yet.
+
+Note: When selecting a device, GPU cuda is prioritized, followed by MacBook's mps, and if neither is available, cpu is selected; the difference is not significant during the demonstration; sometimes pytorch support for mps may have issues during the training process, and you can switch back to cpu. The most critical thing is to ensure that the model, inputs, targets, and created tensors are all on the same device during the training process. Otherwise, there will be an error similar to: all input tensors must be on the same device.
+
+# Train
+
+Now let's train the model using the above passage. We aim to perform 10 epochs, where each epoch refers to completely processing all samples in the training dataset.
+
+During the training process, the most core code is as follows:
+
+> `optimizer.zero_grad()`
+>
+> `loss = loss_batch(input_batch, target_batch, model, device)`
+>
+> `loss.backward()`
+>
+> `optimizer.step()`
+
+Where:
+
+1)`optimizer.zero_grad()` is used to zero out the gradients at the beginning of each batch. This is because PyTorch automatically accumulates gradients, and each batch of training requires independent gradients.
+
+`2)``loss = loss_batch(input_batch, target_batch, model, device)``  is used to calculate the loss value of the current batch. In fact, it is the forward propagation process, which obtains the model output and calculates the loss. `
+
+3)`loss.backward()` This line of code is used to execute the back propagation algorithm. It calculates the gradient (i.e., partial derivative) of each trainable parameter using the chain rule based on the loss function. The calculated gradients are stored in the `.grad` attribute of each parameter.
+
+4)`optimizer.step()` This line of code updates the model's parameters according to the computed gradients and a specific optimization strategy (such as SGD, Adam, etc.).
+
+To summarize, it is: gradient zeroing -> forward propagation -> back propagation -> parameter update.
+
+The complete code is as follows:
+
+```
+
+def train_model_simple(model, train_loader, val_loader, optimizer, device, num_epochs,
+                       eval_freq, eval_iter, start_context, tokenizer):
+    train_losses, val_losses, tokens_seen_track = [], [], []
+    tokens_seen, step = 0, 0
+
+    for epoch in range(num_epochs):
+        model.train()
+        for input_batch, target_batch in train_loader:
+            optimizer.zero_grad()
+            loss = loss_batch(input_batch, target_batch, model, device)
+            loss.backward()
+            optimizer.step()
+
+            tokens_seen += input_batch.numel()
+            step += 1
+
+            if step % eval_freq == 0:
+                train_loss = loss_loader(train_loader, model, device, eval_iter)
+                val_loss = loss_loader(val_loader, model, device, eval_iter)
+                train_losses.append(train_loss)
+                val_losses.append(val_loss)
+                tokens_seen_track.append(tokens_seen)
+                print(f"Ep {epoch+1} (Step {step:06d}): Train loss {train_loss:.3f}, Val loss {val_loss:.3f}")
+
+        generate_and_print_sample(model, tokenizer, start_context, device)
+
+    return train_losses, val_losses, tokens_seen_track
+
+
+def generate_and_print_sample(model, tokenizer, start_context, device):
+    model.eval()
+    with torch.no_grad():
+        result = complete_text(start_context, model,20,GPT_CONFIG_124M,device)
+        print(result)
+    model.train()
+```
+
+In the above code, we added generate_and_print_sample at the end of each epoch to intuitively evaluate the output effect of the model; each batch is equivalent to a step; every eval_freq steps, we print the losses on the training dataset and validation set, as well as the total number of tokens processed so far.
+
+Since our short text is really too small, for the convenience of demonstration, we adjusted the context_length from 1024 to 128; trained for a total of 10 epochs, and the code is as follows:
+
+```
+import copy
+from gpt2_v1 import GPT2Model
+import time
+
+config = copy.deepcopy(GPT_CONFIG_124M)
+config["context_length"] = 128
+
+# Set seed for reproducibility
+torch.manual_seed(123)
+# Initialize model and optimizer
+model = GPT2Model(config).to(device)
+optimizer = torch.optim.AdamW(model.parameters(), lr=4e-4, weight_decay=0.1)
+
+# Start timer
+start_time = time.time()
+
+# Train the model
+num_epochs = 10
+train_losses, val_losses, tokens_seen = train_model_simple(
+    model=model,
+    train_loader=train_loader,
+    val_loader=val_loader,
+    optimizer=optimizer,
+    device=device,
+    num_epochs=num_epochs,
+    eval_freq=10,
+    eval_iter=5,
+    start_context="at the start of",
+    tokenizer=tokenizer
+)
+
+# Report execution time
+elapsed = (time.time() - start_time) / 60
+print(f"Training completed in {elapsed:.2f} minutes.")
+```
+
+> Ep 1 (Step 000010): Train loss 8.104, Val loss 8.263
+>
+> Ep 1 (Step 000020): Train loss 7.535, Val loss 7.935
+>
+> Ep 1 (Step 000030): Train loss 7.153, Val loss 7.773
+>
+> Ep 1 (Step 000040): Train loss 6.801, Val loss 7.731
+>
+> Ep 1 (Step 000050): Train loss 6.626, Val loss 7.619
+>
+> at the start of the war.
+>
+> of the war.
+>
+> and the war, the war, the war, and
+>
+> Ep 2 (Step 000060): Train loss 6.402, Val loss 7.679
+>
+> Ep 2 (Step 000070): Train loss 6.217, Val loss 7.721
+>
+> Ep 2 (Step 000080): Train loss 6.105, Val loss 7.633
+>
+> Ep 2 (Step 000090): Train loss 6.103, Val loss 7.612
+>
+> Ep 2 (Step 000100): Train loss 5.734, Val loss 7.622
+>
+> Ep 2 (Step 000110): Train loss 5.926, Val loss 7.556
+>
+> at the start of the war.
+>
+> ===
+>
+> ===
+>
+> ===
+>
+> ===
+>
+> ===
+>
+> ===
+>
+> ==== war.
+>
+>
+>
+>
+> Ep 3 (Step 000120): Train loss 5.407, Val loss 7.646
+>
+> Ep 3 (Step 000130): Train loss 5.406, Val loss 7.719
+>
+> Ep 3 (Step 000140): Train loss 5.118, Val loss 7.606
+>
+> Ep 3 (Step 000150): Train loss 4.908, Val loss 7.610
+>
+> Ep 3 (Step 000160): Train loss 4.632, Val loss 7.425
+>
+> at the start of the war.
+>
+> ==== German Army to the war and the war.
+>
+> ==== German troops to the
+>
+> Ep 4 (Step 000170): Train loss 4.449, Val loss 7.475
+>
+> Ep 4 (Step 000180): Train loss 3.780, Val loss 7.484
+>
+> Ep 4 (Step 000190): Train loss 3.948, Val loss 7.506
+>
+> Ep 4 (Step 000200): Train loss 3.762, Val loss 7.614
+>
+> Ep 4 (Step 000210): Train loss 3.497, Val loss 7.546
+>
+> Ep 4 (Step 000220): Train loss 3.456, Val loss 7.564
+>
+> at the start of the war. The Allies, the war to the war, the German government the war,000,
+>
+> Ep 5 (Step 000230): Train loss 3.198, Val loss 7.512
+>
+> Ep 5 (Step 000240): Train loss 3.033, Val loss 7.567
+>
+> Ep 5 (Step 000250): Train loss 2.296, Val loss 7.575
+>
+> Ep 5 (Step 000260): Train loss 3.106, Val loss 7.684
+>
+> Ep 5 (Step 000270): Train loss 2.759, Val loss 7.690
+>
+> Ep 5 (Step 000280): Train loss 2.314, Val loss 7.581
+>
+> at the start of the British Army had to Germany.
+>
+> In the first medical for the end of the war ===
+>
+>
+>
+>
+> Ep 6 (Step 000290): Train loss 2.134, Val loss 7.646
+>
+> Ep 6 (Step 000300): Train loss 1.844, Val loss 7.784
+>
+> Ep 6 (Step 000310): Train loss 1.830, Val loss 7.767
+>
+> Ep 6 (Step 000320): Train loss 1.437, Val loss 7.774
+>
+> Ep 6 (Step 000330): Train loss 1.751, Val loss 7.765
+>
+> at the start of the British and negotiations with the Battle of the British had been called the Battle of the French to,
+>
+> Ep 7 (Step 000340): Train loss 1.501, Val loss 7.873
+>
+> Ep 7 (Step 000350): Train loss 1.175, Val loss 7.815
+>
+> Ep 7 (Step 000360): Train loss 1.029, Val loss 7.923
+>
+> Ep 7 (Step 000370): Train loss 1.023, Val loss 7.982
+>
+> Ep 7 (Step 000380): Train loss 1.098, Val loss 8.034
+>
+> Ep 7 (Step 000390): Train loss 0.628, Val loss 8.024
+>
+> at the start of the war on the first the German Supreme Army to the French, and the German terms.
+>
+> ====
+>
+> Ep 8 (Step 000400): Train loss 0.774, Val loss 8.047
+>
+> Ep 8 (Step 000410): Train loss 0.703, Val loss 8.081
+>
+> Ep 8 (Step 000420): Train loss 0.442, Val loss 8.087
+>
+> Ep 8 (Step 000430): Train loss 0.667, Val loss 8.222
+>
+> Ep 8 (Step 000440): Train loss 0.358, Val loss 8.070
+>
+> at the start of war ceased under the provisions of the Termination of the Present War (Definition) Act 1918 concerning:
+>
+> Ep 9 (Step 000450): Train loss 0.439, Val loss 8.133
+>
+> Ep 9 (Step 000460): Train loss 0.363, Val loss 8.154
+>
+> Ep 9 (Step 000470): Train loss 0.271, Val loss 8.249
+>
+> Ep 9 (Step 000480): Train loss 0.295, Val loss 8.205
+>
+> Ep 9 (Step 000490): Train loss 0.208, Val loss 8.318
+>
+> Ep 9 (Step 000500): Train loss 0.234, Val loss 8.252
+>
+> at the start of these agreements was to isolate France by ensuring the three empires resolved any disputes among themselves. In 1887
+>
+> Ep 10 (Step 000510): Train loss 0.193, Val loss 8.325
+>
+> Ep 10 (Step 000520): Train loss 0.168, Val loss 8.322
+>
+> Ep 10 (Step 000530): Train loss 0.166, Val loss 8.343
+>
+> Ep 10 (Step 000540): Train loss 0.103, Val loss 8.435
+>
+> Ep 10 (Step 000550): Train loss 0.169, Val loss 8.382
+>
+> Ep 10 (Step 000560): Train loss 0.098, Val loss 8.352
+>
+> at the start of French determination and self-sacrifice.
+>
+> The Battle of the Somme was an Anglo-French
+>
+> Training completed in 2.01 minutes.
+
+As can be seen, training on a regular MacBook using mps can be completed in about 2 minutes; the text completion in testing has changed from random gibberish to being slightly more reasonable; the loss of the training dataset is rapidly decreasing; however, the loss of the validation set has hardly decreased. This is an obvious Overfitting phenomenon, because our model itself is very complex, but the training samples used are too simple. Subsequently, we will attempt to train on a larger dataset. This is only for illustrative purposes here.
+
+We can also visualize the changes in loss and trained tokens, as follows:
+
+```
+import matplotlib.pyplot as plt
+from matplotlib.ticker import MaxNLocator
+
+def plot_losses(epochs, tokens, train_losses, val_losses):
+    fig, ax1 = plt.subplots(figsize=(5, 3))
+
+    ax1.plot(epochs, train_losses, label="Train loss")
+    ax1.plot(epochs, val_losses, linestyle="--", label="Val loss")
+    ax1.set_xlabel("Epochs")
+    ax1.set_ylabel("Loss")
+    ax1.legend()
+    ax1.xaxis.set_major_locator(MaxNLocator(integer=True))
+
+    ax2 = ax1.twiny()
+    ax2.plot(tokens, train_losses, alpha=0)  # Invisible plot for aligning ticks
+    ax2.set_xlabel("Tokens seen")
+
+    fig.tight_layout()
+    # plt.savefig("loss-plot.pdf")
+    plt.show()
+
+# Example usage
+epochs_tensor = torch.linspace(0, num_epochs, len(train_losses))
+plot_losses(epochs_tensor, tokens_seen, train_losses, val_losses)
+```
+
+![](https://p0-xtjj-private.juejin.cn/tos-cn-i-73owjymdk6/f6e72e968e2849deb63562dd4fdaa2b4~tplv-73owjymdk6-jj-mark-v1:0:0:0:0:5o6Y6YeR5oqA5pyv56S-5Yy6IEAgd2Vpa3Vv:q75.awebp?policy=eyJ2bSI6MywidWlkIjoiMjc4MTEwNzg2MjY0MTk2NCJ9&rk3s=e9ecf3d6&x-orig-authkey=f32326d3454f2ac7e96d3d06cdbb035152127018&x-orig-expires=1752401720&x-orig-sign=s%2FiQ2vIpX6dSZVAD4TJgbG0jyhY%3D)
+
+# Decoding Strategies
+
+## Greedy Decoding
+
+#### Sample decoding:
+
+-   Greedy decoding: Select the word with the highest probability (argmax) at each step.
+-   Sampling decoding: Randomly sample the next word from the probability distribution, for example using torch.multinomial.
+
+We can use the trained model to complete the text, as follows:
+
+```
+model.eval()
+result = complete_text("at the start of the", model,15,device="cpu")
+print("Output text:\n", result)
+```
+
+> Output text:
+>
+> at the start of the Treaty of Bucharest was formally annulled by the Armistice of
+
+When a random number is specified, if we run the same start context multiple times, the results are always the same. This is because we always select the one with the highest probability from the generated vocabulary probability table, which is the use of argmax in the following code:
 
 ```
 import torch
-import numpy as np
 
-def assign_(left, right):
-    if right is None:
-        raise ValueError("'right' cannot be None")
-    right_tensor = torch.as_tensor(right, dtype=left.dtype, device=left.device)
-    if right_tensor.numel() == 0:
-        raise ValueError("'right' cannot be Empty")
-    if left.shape != right_tensor.shape:
-        raise ValueError(f"Shape mismatch: {left.shape} vs {right_tensor.shape}")
-    with torch.no_grad():
-        left.copy_(right_tensor)
+input_text = "at the start of the"
+input_tensor = text_to_tensor(input_text, tokenizer).to("cpu")
+print("Input tensor: ", input_tensor)
 
-def load_weights_into_gpt(gpt, params):
-    assign_(gpt.pos_emb.weight, params["wpe"])
-    assign_(gpt.tok_emb.weight, params["wte"])
+logits = model(input_tensor)
+print("Shape of logits: ", logits.shape)
 
-    for b, (block, pblock) in enumerate(zip(gpt.blocks, params["blocks"])):
-        # Attention QKV
-        qw, kw, vw = np.split(pblock["attn"]["c_attn"]["w"], 3, axis=-1)
-        qb, kb, vb = np.split(pblock["attn"]["c_attn"]["b"], 3, axis=-1)
-        assign_(block.attn.W_Q.weight, qw.T)
-        assign_(block.attn.W_K.weight, kw.T)
-        assign_(block.attn.W_V.weight, vw.T)
-        assign_(block.attn.W_Q.bias, qb)
-        assign_(block.attn.W_K.bias, kb)
-        assign_(block.attn.W_V.bias, vb)
+next_token_logits = logits[:, -1, :]
+print("Shape of next_token_logits: ", next_token_logits.shape)
+print("next_token_logits: ", next_token_logits)
 
-        # Attention output projection
-        assign_(block.attn.out_proj.weight, pblock["attn"]["c_proj"]["w"].T)
-        assign_(block.attn.out_proj.bias,   pblock["attn"]["c_proj"]["b"])
+probas = torch.softmax(next_token_logits, dim=-1)
+next_token_id = torch.argmax(probas, dim=-1).item()
+print("Next token id: ", next_token_id)
 
-        # Feedforward
-        assign_(block.ff.layers[0].weight, pblock["mlp"]["c_fc"]["w"].T)
-        assign_(block.ff.layers[0].bias,   pblock["mlp"]["c_fc"]["b"])
-        assign_(block.ff.layers[2].weight, pblock["mlp"]["c_proj"]["w"].T)
-        assign_(block.ff.layers[2].bias,   pblock["mlp"]["c_proj"]["b"])
-
-        # LayerNorms
-        assign_(block.ln1.weight, pblock["ln_1"]["g"])
-        assign_(block.ln1.bias, pblock["ln_1"]["b"])
-        assign_(block.ln2.weight, pblock["ln_2"]["g"])
-        assign_(block.ln2.bias, pblock["ln_2"]["b"])
-
-    assign_(gpt.final_norm.weight, params["g"])
-    assign_(gpt.final_norm.bias, params["b"])
-    assign_(gpt.out_head.weight,  params["wte"])
+next_token = tokenizer.decode([next_token_id])
+print("Next token: ", next_token)
 ```
 
-Execute load weights as follows:
+> Input tensor: tensor([[2953, 262, 923, 286, 262]], device='mps:0')
+>
+> Shape of logits: torch.Size([1, 5, 50257])
+>
+> Shape of next_token_logits: torch.Size([1, 50257])
+>
+> next_token_logits: tensor([[-2.1345, -0.8003, -6.3171, ..., -6.6543, -5.5982, -6.4263]],
+>
+> device='mps:0', grad_fn=<SliceBackward0>)
+>
+> Next token id: 21345
+>
+> Next token: Treaty
+
+This belongs to Greedy Decoding, which always selects the token with the highest probability.
+
+## Sample Decoding
+
+Another more random decoding method is Sample Decoding, which randomly selects tokens according to the probability distribution.
+
+The way to achieve this is also very simple, just change argmax in the above code to multinomial, as follows:
 
 ```
-load_weights_into_gpt(model, params)
-model.to("cpu")
-model.eval()
-```
-
-Now, we have successfully loaded the public weights of gpt2.
-
-Checking the correctness of parameter loading is very simple; you only need to run our model again, as follows:
-
-```
-import tiktoken
-
 torch.manual_seed(123)
-tokenizer = tiktoken.get_encoding("gpt2")
+next_token_id = torch.multinomial(probas, num_samples=1).item()
+print("Next token id: ", next_token_id)
+next_token = tokenizer.decode([next_token_id])
+print("Next token: ", next_token)
+```
+
+> Next token id: 4141
+>
+> Next token: French
+
+We can run it 100 times to intuitively feel the generation distribution of the next token according to probability sampling, as follows:
+
+```
+def print_sampled_tokens(probas):
+    torch.manual_seed(123)
+    sample = [torch.multinomial(probas, num_samples=1).item() for _ in range(100)]
+    sampled_ids = torch.bincount(torch.tensor(sample), minlength=probas.shape[-1])
+    for id, freq in enumerate(sampled_ids):
+        if freq > 1:
+            print(f"{freq} x {tokenizer.decode([id])}")
+
+print_sampled_tokens(probas)
+```
+
+> 3 x end
+>
+> 2 x war
+>
+> 2 x policy
+>
+> 2 x British
+>
+> 2 x meaning
+>
+> 22 x French
+>
+> 2 x direction
+>
+> 2 x refused
+>
+> 3 x Empire
+>
+> 28 x Treaty
+
+It can be seen that "Treaty" appears 28 times out of 100, while other words appear at least 2 times.
+
+We can also use simulation to understand the differences in decoding strategies. The code is as follows. We simulated the possible completion words for 'At the start of the' and generated a probability table according to the normal distribution:
+
+```
+import torch
+
+#Complete 'At the start of the'
+possible_text = "war battle revolution novel experiment day journey movement"
+words = possible_text.lower().split()
+vocab = {word: idx for idx, word in enumerate(words)}
+inverse_vocab = {idx: word for word, idx in vocab.items()}
+
+# Step 2: Generate random logits for each vocab token
+vocab_size = len(vocab)
+torch.manual_seed(123)
+next_token_logits = torch.normal(mean=0.0, std=4.0, size=(vocab_size,))  # increase std to increase randomness
+
+# Convert logits to probabilities
+probas = torch.softmax(next_token_logits, dim=0)
+
+# Pick next token by argmax
+next_token_id = torch.argmax(probas).item()
+
+# Decode and print the predicted token
+print(f"Next generated token: {inverse_vocab[next_token_id]}")
+```
+
+> Next generated token: day
+
+If argmax is used, the next time will always result in day, because the probability of day is the highest.
+
+And if we use multinomial and run it 100 times, the distribution of the words obtained is as follows:
+
+```
+def print_sampled_tokens(probas):
+    torch.manual_seed(123)
+    sample = [torch.multinomial(probas, num_samples=1).item() for _ in range(100)]
+    sampled_ids = torch.bincount(torch.tensor(sample), minlength=probas.shape[-1])
+    for id, freq in enumerate(sampled_ids):
+        print(f"{freq} x {inverse_vocab[id]}")
+
+print_sampled_tokens(probas)
+```
+
+> 11 x war
+>
+> 31 x battle
+>
+> 7 x revolution
+>
+> 4 x novel
+>
+> 0 x experiment
+>
+> 46 x day
+>
+> 1 x journey
+>
+> 0 x movement
+
+It can be seen that the sample decoding method using multinomial brings more randomness.
+
+# Top-k Sampling
+
+However, the consequence of multinomial adding randomness is that words with very low probabilities may also appear; sometimes, we only want words with higher probabilities to appear and want to exclude words with very low probabilities.
+
+Top-k means sampling only from the top K words with the highest probabilities.
+
+As shown in the above example, we only select the top 3 tokens, as follows:
+
+```
+print(next_token_logits)
+top_k = 3
+top_k_logits, top_k_indices = torch.topk(next_token_logits, k=top_k, dim=-1)
+print("top_k_logits: ", top_k_logits)
+print("top_k_indices: ", top_k_indices)
+```
+
+> tensor([-0.4459, 0.4815, -1.4785, -0.9617, -4.7877, 0.8371, -3.8894, -3.0202])
+>
+> top_k_logits: tensor([ 0.8371, 0.4815, -0.4459])
+>
+> top_k_indices: tensor([5, 1, 0])
+
+We obtained the original logits values of the top 3, with the lowest value being -0.4459; next, we only need to mask out other logits below the lowest value, and the masking method is also very simple, which only requires filling with -inf, and it will become 0 after the subsequent softmax, as follows:
+
+```
+# Mask out logits that are not in the top-k by setting them to -inf
+threshold = top_k_logits[-1]
+new_logits = torch.where(
+    next_token_logits < threshold,
+    torch.full_like(next_token_logits, float('-inf')),
+    next_token_logits
+)
+
+print("new_logits: ", new_logits)
+topk_probas = torch.softmax(new_logits, dim=-1)
+print("topk_probas: ", topk_probas)
+
+print_sampled_tokens(topk_probas)
+```
+
+> new_logits: tensor([-0.4459, 0.4815, -inf, -inf, -inf, 0.8371, -inf, -inf])
+>
+> topk_probas: tensor([0.1402, 0.3543, 0.0000, 0.0000, 0.0000, 0.5056, 0.0000, 0.0000])
+>
+> 13 x war
+>
+> 34 x battle
+>
+> 0 x revolution
+>
+> 0 x novel
+>
+> 0 x experiment
+>
+> 53 x day
+>
+> 0 x journey
+>
+> 0 x movement
+
+As can be seen, in new_logits we only retained the top 3 values; in the generated probability table, there are also only the top 3; and the generated tokens are also only 3 types.
+
+# Temperature
+
+Temperature is another more common method for controlling randomness, and its implementation is particularly simple, which is to scale the raw logits output by the model: scaled_logits = logits / temperature.
+
+Sample code is as follows:
+
+```
+def softmax_with_temperature(logits, temperature):
+    scaled_logits = logits / temperature
+    return torch.softmax(scaled_logits, dim=-1)
+
+# Temperature values
+temperatures = [1.0, 0.3, 1.5]
+
+# Calculate scaled probabilities
+scaled_probas = [softmax_with_temperature(next_token_logits, T) for T in temperatures]
+```
+
+We can intuitively visualize the distribution of generated tokens at different temperatures by drawing a graph:
+
+```
+import torch
+import matplotlib.pyplot as plt
+
+# Plotting
+x = torch.arange(len(vocab))
+bar_width = 0.2
+
+fig, ax = plt.subplots(figsize=(6, 4))
+
+for i, T in enumerate(temperatures):
+    ax.bar(x + i * bar_width, scaled_probas[i], width=bar_width, label=f"T = {T}")
+
+ax.set_ylabel('Probability')
+ax.set_xticks(x)
+ax.set_xticklabels(vocab.keys(), rotation=90)
+ax.legend()
+
+plt.tight_layout()
+plt.show()
+```
+
+![](https://p0-xtjj-private.juejin.cn/tos-cn-i-73owjymdk6/f51d37749b8845aa8a6bd6845e8a27c9~tplv-73owjymdk6-jj-mark-v1:0:0:0:0:5o6Y6YeR5oqA5pyv56S-5Yy6IEAgd2Vpa3Vv:q75.awebp?policy=eyJ2bSI6MywidWlkIjoiMjc4MTEwNzg2MjY0MTk2NCJ9&rk3s=e9ecf3d6&x-orig-authkey=f32326d3454f2ac7e96d3d06cdbb035152127018&x-orig-expires=1752401720&x-orig-sign=%2B5pZ%2FjbQi8Ru%2B8bziozF9Wwx5ek%3D)
+
+It can be seen that the higher the temperature, the flatter the distribution, and the greater the randomness; conversely, the lower the temperature, the sharper the distribution, with a tendency to concentrate on words with higher probabilities, resulting in stronger certainty and lower randomness.
+
+# Generate text with temperature and top_k
+
+We can combine the above top_k and temperature to optimize the code for generating text, as follows:
+
+```
+def generate_text_simple(model, idx, max_new_tokens, context_size, temperature=0.0, top_k=None, eos_id=None):
+    for _ in range(max_new_tokens):
+        idx_cond = idx[:, -context_size:]
+
+        # Get logits from model
+        with torch.no_grad():
+            logits = model(idx_cond)
+
+        # Take logits for the last time step
+        # (batch, n_tokens, vocab_size) -> (batch, vocab_size)
+        logits = logits[:, -1, :]
+
+        if top_k is not None:
+            top_logits, _ = torch.topk(logits, top_k, dim=-1)  # (batch, top_k)
+            threshold = top_logits[:, -1].unsqueeze(-1) # (batch, ) -> (batch, 1)
+            logits = torch.where(
+                logits < threshold,
+                torch.full_like(logits, float('-inf')),
+                logits
+            )
+        if temperature > 0.0:
+            logits = logits / temperature
+
+            # Apply softmax to get probabilities
+            probas = torch.softmax(logits, dim=-1)  # (batch, vocab_size)
+
+            # Sample from distribution
+            idx_next = torch.multinomial(probas, num_samples=1)  # (batch, 1)
+        else:
+            # Greedy sampling
+            idx_next = torch.argmax(logits, dim=-1, keepdim=True)  # (batch, 1)
+
+        if eos_id is not None and idx_next == eos_id:
+            break
+
+        # Append sampled index to the running sequence
+        idx = torch.cat((idx, idx_next), dim=1)  # (batch, n_tokens+1)
+
+    return idx
+```
+
+Try generating text again:
+
+```
+torch.manual_seed(123)
+
 token_ids = generate_text_simple(
-    model=model,
-    idx=text_to_tensor("at the start of", tokenizer),
+    model=model.to("cpu"),
+    idx=text_to_tensor("at the start of the", tokenizer),
     max_new_tokens=15,
     context_size=GPT_CONFIG_124M["context_length"],
-    top_k=25,
+    top_k=3,
     temperature=1.4
 )
 
@@ -258,565 +1091,53 @@ print("Output text:\n", tensor_to_text(token_ids, tokenizer))
 
 > Output text:
 >
-> at the start of an international series of events. You don't have to worry about who has
+> at the start of the French troops had been unjust. On 3 November 1918 and the German leaders,
 
-As can be seen, a relatively smooth sentence was generated, which proves that our model successfully loaded the public weights. If the model fails to load correctly, it cannot output reasonable sentences.
+In the above example, we added the top_k and temperature parameters to generate_text_simple to better control the randomness of the model output.
 
-# Instruction Finetunning
+Briefly summarize the methods for controlling randomness:
 
-To date, our GPT2 model can only complete text but cannot follow instructions.
+1) argmax and multinomial essentially do not change the probability table of the input, but only change the sampling method; argmax is a deterministic maximum value selection; multinomial is a probabilistic random sampling.
 
-## Data prepare
+2) Top-k filters out low-probability values, essentially performing a truncation operation on the probability table.
 
-Next, we download the[Alpaca](https://crfm.stanford.edu/2023/03/13/alpaca.html)dataset for instruction training.
+3) Temperate scales the original logits, essentially changing the distribution of the probability table.
 
-You can quickly download via this address:
+# Train on larger datasets
 
-```
-!wget https://raw.githubusercontent.com/tatsu-lab/stanford_alpaca/main/alpaca_data.json
-```
-
-Load and view the data as follows:
+We can also try training the model on a larger dataset, such as using HuggingFace's wikitext, as follows:
 
 ```
-import json
-import random
-
-with open("alpaca_data.json", "r") as f:
-    data = json.load(f)
-
-random.seed(123)
-data = random.sample(data, 1000)
+from datasets import load_dataset
+dataset = load_dataset("wikitext", "wikitext-2-raw-v1")
 ```
 
-```
-def format_input(entry):
-    instruction = entry.get("instruction", "").strip()
-    input_section = entry.get("input", "").strip()
-
-    parts = [
-        "Below is an instruction that describes a task. Write a response that appropriately completes the request.",
-        "\n\n### Instruction:\n" + instruction,
-    ]
-
-    if input_section:
-        parts.append("\n\n### Input:\n" + input_section)
-
-    return "".join(parts)
-```
-
-```
-model_input = format_input(data[50])
-desired_response = f"\n\n### Response:\n{data[50]['output']}"
-
-print(model_input + desired_response)
-```
-
-> ```
-> Below is an instruction that describes a task. Write a response that appropriately completes the request.
+> DatasetDict({
 >
-> ### Instruction:
-> Generate a general statement about the importance of empathy.
+> test: Dataset({
 >
-> ### Response:
-> Empathy is essential for fostering meaningful relationships, deepening understanding between people, and building a more compassionate world.
-> ```
-
-Subsequently, we will input the complete text containing instruction and response to the model for training.
-
-For quick training on personal PCs, we randomly select only 1000 entries; the format is as above, including system instructions, instruction, and corresponding response.
-
-## Datasets
-
-The dataset is divided as follows, with 800 entries for the training dataset, 100 entries for the validation set, and 100 entries for the test set, as shown below:
-
-```
-n = len(data)
-train_data = data[:int(n * 0.80)]
-test_data = data[int(n * 0.80):int(n * 0.90)]
-val_data = data[int(n * 0.90):]
-print("Training set length:", len(train_data))
-print("Validation set length:", len(val_data))
-print("Test set length:", len(test_data))
-```
-
-> Training set length: 800
+> features: ['text'],
 >
-> Validation set length: 100
+> num_rows: 4358
 >
-> Test set length: 100
-
-Create a dataset as follows:
-
-```
-import torch
-from torch.utils.data import Dataset
-from functools import partial
-
-device = "cpu"  # or "cuda" if available
-
-class InstructionDataset(Dataset):
-    def __init__(self, data, tokenizer):
-        self.encoded_texts = [
-            tokenizer.encode(
-                format_input(entry) + f"\n\n### Response:\n{entry['output']}"
-            )
-            for entry in data
-        ]
-
-    def __len__(self):
-        return len(self.encoded_texts)
-
-    def __getitem__(self, idx):
-        return self.encoded_texts[idx]
-
-
-def custom_collate_fn(
-    batch,
-    pad_token_id=50256,
-    ignore_index=-100,
-    allowed_max_length=None,
-    device="cpu"
-):
-    max_len = min(
-        max(len(seq) + 1 for seq in batch),
-        allowed_max_length or float('inf')
-    )
-
-    input_tensors, label_tensors = [], []
-
-    for seq in batch:
-        seq = seq + [pad_token_id]
-        padded = seq + [pad_token_id] * (max_len - len(seq))
-
-        inputs = torch.tensor(padded[:-1], dtype=torch.long)
-        labels = torch.tensor(padded[1:], dtype=torch.long)
-
-        # Mask padding in labels except the first one
-        pad_mask = (labels == pad_token_id).nonzero(as_tuple=True)[0]
-        if len(pad_mask) > 1:
-            labels[pad_mask[1:]] = ignore_index
-
-        input_tensors.append(inputs)
-        label_tensors.append(labels)
-
-    return (
-        torch.stack(input_tensors).to(device),
-        torch.stack(label_tensors).to(device)
-    )
-
-
-customized_collate_fn = partial(
-    custom_collate_fn,
-    device=device,
-    allowed_max_length=1024
-)
-```
-
-Among them, custom_collate_fn is used to pad training samples to make their lengths consistent.
-
-Below, we will separately create training datasets for train, validate, and test:
-
-```
-from torch.utils.data import DataLoader
-
-torch.manual_seed(123)
-
-train_dataset = InstructionDataset(train_data, tokenizer)
-train_loader = DataLoader(train_dataset, batch_size=8, collate_fn=customized_collate_fn, shuffle=True,drop_last=True,num_workers=0)
-
-val_dataset = InstructionDataset(val_data, tokenizer)
-val_loader = DataLoader(val_dataset, batch_size=8, collate_fn=customized_collate_fn, shuffle=False,drop_last=False,num_workers=0)
-
-test_dataset = InstructionDataset(test_data, tokenizer)
-test_loader = DataLoader(test_dataset, batch_size=8, collate_fn=customized_collate_fn, shuffle=False,drop_last=False,num_workers=0)
-```
-
-where batch_size=8 is specified;
-
-We can take one item from the validation set and test the current model, as follows:
-
-```
-model.eval()
-torch.manual_seed(123)
-
-input_text = format_input(val_data[3])
-token_ids = generate_text_simple(
-    model=model,
-    idx=text_to_tensor(input_text, tokenizer),
-    max_new_tokens=50,
-    context_size=1024,
-    eos_id=50256,
-)
-generated_text = tensor_to_text(token_ids, tokenizer)
-print(generated_text)
-```
-
-> ```
-> Below is an instruction that describes a task. Write a response that appropriately completes the request.
+> })
 >
-> ### Instruction:
-> Describe the origins and history of the Internet.
+> train: Dataset({
 >
-> ### Response:
+> features: ['text'],
 >
-> Describe the origin and history of the Internet.
+> num_rows: 36718
 >
-> ### Response:
+> })
 >
-> Describe the origin and history of the Internet.
+> validation: Dataset({
 >
-> ### Response:
+> features: ['text'],
 >
-> Describe the origin and history of the
-> ```
-
-It can be seen that the model does not follow the instructions, but simply repeats them meaninglessly.
-
-We can check the loss of the current model on the training dataset and validation set, as follows:
-
-```
-from gpt2_v2 import loss_loader
-
-model.to(device)
-
-torch.manual_seed(123)
-
-with torch.no_grad():
-    train_loss = loss_loader(train_loader, model, device, num_batches=5)
-    val_loss = loss_loader(val_loader, model, device, num_batches=5)
-
-print("Training loss:", train_loss)
-print("Validation loss:", val_loss)
-```
-
-> Training loss: 3.5710490226745604
+> num_rows: 3760
 >
-> Validation loss: 3.468023490905762
-
-## Train as normal
-
-The process of Finetune is similar to the usual training, and the code is as follows:
-
-```
-import torch
-import time
-from gpt2_v2 import train_model_simple, build_tokenizer
-
-torch.manual_seed(123)
-torch.set_num_threads(12)
-
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-optimizer = torch.optim.AdamW(model.parameters(), lr=5e-5, weight_decay=0.1)
-
-start_time = time.time()
-
-# FineTune the model
-num_epochs = 2
-train_losses, val_losses, tokens_seen = train_model_simple(
-    model=model,
-    train_loader=train_loader,
-    val_loader=val_loader,
-    optimizer=optimizer,
-    device=device,
-    num_epochs=num_epochs,
-    eval_freq=5,
-    eval_iter=5,
-    start_context=format_input(val_data[3]),
-    tokenizer=build_tokenizer()
-)
-
-elapsed = (time.time() - start_time) / 60
-print(f"Training completed in {elapsed:.2f} minutes.")
-```
-
-> ```
-> Ep 1 (Step 000005): Train loss 2.725, Val loss 2.635, Tokens seen: 6424
-> Ep 1 (Step 000010): Train loss 2.191, Val loss 2.175, Tokens seen: 14624
-> Ep 1 (Step 000015): Train loss 2.028, Val loss 2.044, Tokens seen: 21104
-> Ep 1 (Step 000020): Train loss 2.043, Val loss 1.969, Tokens seen: 28240
-> Ep 1 (Step 000025): Train loss 1.945, Val loss 1.948, Tokens seen: 36288
-> Ep 1 (Step 000030): Train loss 1.764, Val loss 1.918, Tokens seen: 44584
-> Ep 1 (Step 000035): Train loss 1.882, Val loss 1.893, Tokens seen: 53184
-> Ep 1 (Step 000040): Train loss 1.854, Val loss 1.895, Tokens seen: 60104
-> Ep 1 (Step 000045): Train loss 1.964, Val loss 1.880, Tokens seen: 72128
-> Ep 1 (Step 000050): Train loss 1.807, Val loss 1.854, Tokens seen: 81440
-> Ep 1 (Step 000055): Train loss 1.738, Val loss 1.857, Tokens seen: 88864
-> Ep 1 (Step 000060): Train loss 1.783, Val loss 1.859, Tokens seen: 97120
-> Ep 1 (Step 000065): Train loss 1.770, Val loss 1.855, Tokens seen: 104936
-> Ep 1 (Step 000070): Train loss 1.792, Val loss 1.845, Tokens seen: 112192
-> Ep 1 (Step 000075): Train loss 1.819, Val loss 1.834, Tokens seen: 119536
-> Ep 1 (Step 000080): Train loss 1.771, Val loss 1.830, Tokens seen: 126736
-> Ep 1 (Step 000085): Train loss 1.755, Val loss 1.831, Tokens seen: 135560
-> Ep 1 (Step 000090): Train loss 1.626, Val loss 1.829, Tokens seen: 144096
-> Ep 1 (Step 000095): Train loss 1.659, Val loss 1.816, Tokens seen: 154272
-> Ep 1 (Step 000100): Train loss 1.681, Val loss 1.808, Tokens seen: 162040
-> Below is an instruction that describes a task. Write a response that appropriately completes the request.
+> })
 >
-> ### Instruction:
-> Describe the origins and history of the Internet.
->
-> ### Response:
-> The Internet was invented by the internet community in the early 1800s
-> 💾 Checkpoint saved: checkpoints/checkpoint_epoch1.pth
-> Ep 2 (Step 000105): Train loss 1.760, Val loss 1.824, Tokens seen: 168504
-> Ep 2 (Step 000110): Train loss 1.507, Val loss 1.811, Tokens seen: 174832
-> Ep 2 (Step 000115): Train loss 1.556, Val loss 1.825, Tokens seen: 182232
-> Ep 2 (Step 000120): Train loss 1.597, Val loss 1.816, Tokens seen: 188792
-> Ep 2 (Step 000125): Train loss 1.524, Val loss 1.807, Tokens seen: 197440
-> Ep 2 (Step 000130): Train loss 1.629, Val loss 1.827, Tokens seen: 205488
-> Ep 2 (Step 000135): Train loss 1.613, Val loss 1.806, Tokens seen: 213760
-> Ep 2 (Step 000140): Train loss 1.543, Val loss 1.813, Tokens seen: 222032
-> Ep 2 (Step 000145): Train loss 1.599, Val loss 1.820, Tokens seen: 230560
-> Ep 2 (Step 000150): Train loss 1.519, Val loss 1.817, Tokens seen: 240576
-> Ep 2 (Step 000155): Train loss 1.450, Val loss 1.818, Tokens seen: 248984
-> Ep 2 (Step 000160): Train loss 1.617, Val loss 1.799, Tokens seen: 256312
-> Ep 2 (Step 000165): Train loss 1.541, Val loss 1.808, Tokens seen: 264560
-> Ep 2 (Step 000170): Train loss 1.605, Val loss 1.794, Tokens seen: 271744
-> Ep 2 (Step 000175): Train loss 1.453, Val loss 1.801, Tokens seen: 280280
-> Ep 2 (Step 000180): Train loss 1.524, Val loss 1.806, Tokens seen: 286704
-> Ep 2 (Step 000185): Train loss 1.457, Val loss 1.791, Tokens seen: 297816
-> Ep 2 (Step 000190): Train loss 1.414, Val loss 1.794, Tokens seen: 303968
-> Ep 2 (Step 000195): Train loss 1.484, Val loss 1.799, Tokens seen: 313272
-> Ep 2 (Step 000200): Train loss 1.499, Val loss 1.804, Tokens seen: 320096
-> Below is an instruction that describes a task. Write a response that appropriately completes the request.
->
-> ### Instruction:
-> Describe the origins and history of the Internet.
->
-> ### Response:
-> The Internet was invented by the internet community in the early 1800s
-> 💾 Checkpoint saved: checkpoints/checkpoint_epoch2.pth
-> 🎉 Training complete. Final model saved: checkpoints/final_model.pth
-> Training completed in 11.32 minutes.
-> ```
+> })
 
-It can be seen that the model learned to follow instructions after only 1-2 epochs.
-
-Since this is just for demonstration and the data volume is very small, only 2 epochs were run here; those interested can try increasing the data volume.
-
-We can visualize the changes in the loss
-
-```
-from gpt2_v2 import plot_losses
-
-epochs_tensor = torch.linspace(0, num_epochs, len(train_losses))
-plot_losses(epochs_tensor, tokens_seen, train_losses, val_losses)
-```
-
-![](https://p0-xtjj-private.juejin.cn/tos-cn-i-73owjymdk6/11e6a2257b0347ec9cd7bca962d67aa7~tplv-73owjymdk6-jj-mark-v1:0:0:0:0:5o6Y6YeR5oqA5pyv56S-5Yy6IEAgd2Vpa3Vv:q75.awebp?policy=eyJ2bSI6MywidWlkIjoiMjc4MTEwNzg2MjY0MTk2NCJ9&rk3s=e9ecf3d6&x-orig-authkey=f32326d3454f2ac7e96d3d06cdbb035152127018&x-orig-expires=1752401678&x-orig-sign=pN4BmSk0hJPMA8cl%2FpKaxF30a4Q%3D)
-
-As can be seen, the loss drops rapidly on the training dataset, but not significantly on the test set; this is also in line with expectations, after all, for demonstration purposes, the amount of data used is too small. Those interested can try increasing the data volume.
-
-## Save model
-
-For a trained model, we can save it for easy loading and reproduction next time, as follows:
-
-For simplicity, it's just one line of code:
-
-```
-file_name = "gpt2-124M-sft.pth"
-torch.save(model.state_dict(), file_name)
-print(f"Model saved as {file_name}")
-```
-
-For more complex scenarios, we can save other descriptive parameters, which are particularly suitable for the Model Training process, as follows:
-
-```
-# Save final model
-final_path = os.path.join(save_dir, "final_model.pth")
-torch.save({
-    'epoch': num_epochs,
-    'step': step,
-    'tokens_seen': tokens_seen,
-    'model_state_dict': model.state_dict(),
-    'optimizer_state_dict': optimizer.state_dict(),
-    'train_losses': train_losses,
-    'val_losses': val_losses,
-    'tokens_seen_track': tokens_seen_track,
-}, final_path)
-print(f"🎉 Training complete. Final model saved: {final_path}")
-```
-
-The process of storing a model is somewhat similar to serialization and deserialization in engineering. It can be seen that a model is essentially a neural network structure plus the parameters of each layer.
-
-During Model Training with a large amount of data, sometimes the training may unexpectedly interrupt. To prevent the loss of training results, model parameters can be saved periodically, for example, at the end of each epoch; this facilitates resuming training after an interruption, saving time and cost.
-
-# Evaluate model
-
-To evaluate the effectiveness of the model, in addition to manual spot checks and manual evaluation, we can also leverage other more powerful models to assess and score our small model.
-
-## Generate response
-
-First, we run test_data, input test questions into the model, and generate all responses, as follows:
-
-```
-from tqdm import tqdm
-import json
-
-def generate_response(entry, model):
-    input_text = format_input(entry)
-    token_ids = generate_text_simple(
-        model=model,
-        idx=text_to_tensor(input_text, tokenizer),
-        max_new_tokens=35,
-        context_size=1024,
-        eos_id=50256,
-    )
-    generated_text = tensor_to_text(token_ids, tokenizer)
-    response = generated_text[len(input_text):].replace("### Response:", "").strip()
-    return response
-
-# Generate and attach responses
-for entry in tqdm(test_data, desc="Generating responses"):
-    entry["model_response"] = generate_response(entry, model)
-
-# Save to file
-with open("instruction-data-with-response.json", "w") as f:
-    json.dump(test_data, f, indent=4)
-```
-
-## Run Ollama and Llama3
-
-Next, we download and open[ollama](https://ollama.com/); Ollama is an open-source tool for running, deploying, and managing large language models on local computers; it officially supports the local deployment and operation of models such as[DeepSeek-R1](https://ollama.com/library/deepseek-r1), [Qwen 3](https://ollama.com/library/qwen3), [Llama 3.3](https://ollama.com/library/llama3.3), [Qwen 2.5-VL](https://ollama.com/library/qwen2.5vl), [Gemma 3](https://ollama.com/library/gemma3). The usage process is very simple, and there are numerous online tutorials, so we will not elaborate further here.
-
-The following is the code for simply determining the running status of Ollama and sending an HTTP request locally to the llama3 model:
-
-```
-import psutil
-
-def is_process_running(name_substr: str) -> bool:
-    """Check if any running process contains the given substring in its name."""
-return any(name_substr.lower() in (proc.info["name"] or "").lower()
-               for proc in psutil.process_iter(["name"]))
-
-if not is_process_running("ollama"):
-    raise RuntimeError("❌ Ollama not running. Please launch it before proceeding.")
-
-print("✅ Ollama is running.")
-```
-
-```
-import json
-import urllib.request
-
-def query_model(
-    prompt: str,
-    model: str = "llama3",
-    url: str = "http://localhost:11434/api/chat",
-    seed: int = 123,
-    temperature: float = 0.0,
-    num_ctx: int = 2048
-) -> str:
-    """Send a prompt to a local chat model and return the generated response."""
-
-data = {
-        "model": model,
-        "messages": [{"role": "user", "content": prompt}],
-        "options": {
-            "seed": seed,
-            "temperature": temperature,
-            "num_ctx": num_ctx
-        }
-    }
-
-    request = urllib.request.Request(
-        url,
-        data=json.dumps(data).encode("utf-8"),
-        method="POST",
-        headers={"Content-Type": "application/json"}
-    )
-
-    response_text = []
-
-    try:
-        with urllib.request.urlopen(request) as response:
-            for line in response:
-                line = line.decode("utf-8").strip()
-                if line:
-                    message_chunk = json.loads(line)
-                    content = message_chunk.get("message", {}).get("content", "")
-                    response_text.append(content)
-    except Exception as e:
-        raise RuntimeError(f"Failed to query model: {e}")
-
-    return "".join(response_text)
-```
-
-The above code is very simple, just assembling parameters and sending an HTTP request to the local Llama3 model.
-
-Here, we choose llama3 as our referee model because gpt2 has 1.5B parameters while llama3 has 8B parameters, with a significant improvement in performance.
-
-We can simply test the above code by asking the Llama3 model a simple question, as follows:
-
-```
-result = query_model("What do Llamas eat?", "llama3")
-print(result)
-```
-
-> ```
-> Llamas are herbivores, which means they primarily feed on plant-based foods. Their diet typically consists of:
->
-> 1. Grasses: Llamas love to graze on various types of grasses, including tall grasses, short grasses, and even weeds.
-> 2. Hay: High-quality hay, such as alfalfa or timothy hay, is a staple in a llama's diet. They enjoy the sweet taste and texture of fresh hay.
-> 3. Grains: Llamas may receive grains like oats, barley, or corn as part of their daily ration. However, it's essential to provide these grains in moderation, as they can be high in calories.
-> 4. Fruits and vegetables: Llamas enjoy a variety of fruits and veggies, such as apples, carrots, sweet potatoes, and leafy greens like kale or spinach.
-> 5. Minerals: Llamas require access to mineral supplements, which help maintain their overall health and well-being.
->
-> In the wild, llamas might also eat:
->
-> 1. Leaves: They'll munch on leaves from trees and shrubs, including plants like willow, alder, and birch.
-> 2. Bark: In some cases, llamas may eat the bark of certain trees, like aspen or cottonwood.
-> 3. Mosses and lichens: These non-vascular plants can be a tasty snack for llamas.
->
-> In captivity, llama owners typically provide a balanced diet that includes a mix of hay, grains, and fruits/vegetables. It's essential to consult with a veterinarian or experienced llama breeder to determine the best feeding plan for your llama.
-> ```
-
-It can be seen that llama3 runs normally locally, and its output quality is still quite high.
-
-## Evaluate by scores
-
-Finally, we write a prompt to ask Llama3 to score the response generated by GPT2 for us, as follows:
-
-```
-from tqdm import tqdm
-
-def generate_model_scores(data, response_key="model_response", model="llama3"):
-    """Generate integer scores (0–100) for model responses using LLM evaluation."""
-scores = []
-
-    for entry in tqdm(data, desc="Scoring entries"):
-        prompt = (
-            "Given the input below, the correct output, and the model's response, "
-            "score the model's response on a scale from 0 to 100, where 100 is the best.\n\n"
-            f"### Input:\n{format_input(entry)}\n\n"
-            f"### Expected Output:\n{entry['output']}\n\n"
-            f"### Model Response:\n{entry.get(response_key, '').strip()}\n\n"
-            "### Respond with the integer number only."
-        )
-
-        try:
-            score_str = query_model(prompt, model=model).strip()
-            score = int(score_str)
-            scores.append(score)
-        except ValueError:
-            print(f"[Warning] Invalid score format: {score_str!r}")
-        except Exception as e:
-            print(f"[Error] Scoring failed for entry: {e}")
-
-    return scores
-```
-
-```
-scores = generate_model_scores(test_data)
-print(f"Number of scores: {len(scores)} of {len(test_data)}")
-print(f"Average: {sum(scores)/len(scores):.2f}, Max: {max(scores)}, Min: {min(scores)}")
-```
-
-> Number of scores: 85 of 100
->
-> Average: 56.62, Max: 85, Min: 0
-
-After excluding some output format errors, the average score is 56; although it didn't pass, it's not too bad; at least it shows that the model has improved significantly compared to its initial nonsense.
-
-By now, we have fully learned the essential skills for building GPT2 code, training models, and fine-tuning models. This article is for demonstration purposes only. You can expand the dataset on your own, train and fine-tune it on a higher-performance GPU, and experience more fun with large models.
+The specific training methods are similar, and those interested can try them on their own.
