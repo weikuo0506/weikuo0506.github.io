@@ -22,7 +22,7 @@
     -   **[Handcrafted LLM: Train GPT2 from Scratch](https://weikuo0506.github.io/posts/HandcraftedLLM/TrainGPT2fromScratch):** Understanding Cross-Entropy, implementing the calculation of Loss on datasets and batches; implementing training code and training on an ultra-small dataset; implementing methods to control randomness in decoding, including temperature and top k; attempting to train on a larger dataset, and learning to save and load model parameters.
     -   **[Handcrafted LLM: Fine-tune GPT2 from Scratch](https://weikuo0506.github.io/posts/HandcraftedLLM/FinetuneGPT2fromScratch):** Manually load public model weights; fine-tune GPT2 using a tiny dataset to enable GPT2 to respond to instructions rather than complete text; evaluate the training results using locally run llama3.
 
--  This series was originally published in Chinese here: [手搓大模型](https://juejin.cn/column/7525657014703276047)
+-  This series was originally published in Chinese here: [手搓大模型](https://juejin.cn/post/7525784884721205299)
 
 
 
