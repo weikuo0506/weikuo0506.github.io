@@ -502,8 +502,8 @@ As shown in the following example, it is clear at a glance whether the position 
    ↓         ↓         ↓
 [fish] + P0 [eat] + P1 [you] + P2
 
-→ 即使 Token 一样，只要位置不同，最终向量就不同。
-→ Transformer 能区分主语、宾语等结构含义。
+→ Even if the tokens are the same, as long as the positions are different, the final vectors will be different.
+→ Transformer can distinguish the structural meanings such as subject and object.
 ```
 
 Obviously, the position encoding should start from 0 and go up to context_size - 1.
