@@ -200,7 +200,7 @@ print(tokenizer.decode([403,12,6667,12,11203,12,1799]))
 
 [tiktoken](https://tiktokenizer.vercel.app/) is a high-performance tokenizer released by OpenAI, and the above process can also be visualized online:
 
-![](https://p0-xtjj-private.juejin.cn/tos-cn-i-73owjymdk6/9cd39b347d8a4f55819c5412e43063f3~tplv-73owjymdk6-jj-mark-v1:0:0:0:0:5o6Y6YeR5oqA5pyv56S-5Yy6IEAgd2Vpa3Vv:q75.awebp?policy=eyJ2bSI6MywidWlkIjoiMjc4MTEwNzg2MjY0MTk2NCJ9&rk3s=e9ecf3d6&x-orig-authkey=f32326d3454f2ac7e96d3d06cdbb035152127018&x-orig-expires=1752400751&x-orig-sign=ZVb0LsnwU2RapzEyn5IaQWms3kM%3D)
+<img src="https://p0-xtjj-private.juejin.cn/tos-cn-i-73owjymdk6/9cd39b347d8a4f55819c5412e43063f3~tplv-73owjymdk6-jj-mark-v1:0:0:0:0:5o6Y6YeR5oqA5pyv56S-5Yy6IEAgd2Vpa3Vv:q75.awebp?policy=eyJ2bSI6MywidWlkIjoiMjc4MTEwNzg2MjY0MTk2NCJ9&rk3s=e9ecf3d6&x-orig-authkey=f32326d3454f2ac7e96d3d06cdbb035152127018&x-orig-expires=1752400751&x-orig-sign=ZVb0LsnwU2RapzEyn5IaQWms3kM%3D" width="700px">
 
 You can check that the vocabulary size used by GPT2 is 50257.
 
