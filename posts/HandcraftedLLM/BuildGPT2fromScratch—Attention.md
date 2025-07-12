@@ -605,7 +605,7 @@ Please pay special attention that the dimension of the finally generated context
 
 So far, we have completed [the complete calculation of single-head attention in the Attention paper ](https://arxiv.org/pdf/1706.03762).
 
-![](https://p0-xtjj-private.juejin.cn/tos-cn-i-73owjymdk6/25280eb13c12476592d8345fe5d5cfd0~tplv-73owjymdk6-jj-mark-v1:0:0:0:0:5o6Y6YeR5oqA5pyv56S-5Yy6IEAgd2Vpa3Vv:q75.awebp?policy=eyJ2bSI6MywidWlkIjoiMjc4MTEwNzg2MjY0MTk2NCJ9&rk3s=e9ecf3d6&x-orig-authkey=f32326d3454f2ac7e96d3d06cdbb035152127018&x-orig-expires=1752401940&x-orig-sign=xMgEUKjlOFd5TywQIT2D9eaQ%2BTY%3D)
+<img src="https://p0-xtjj-private.juejin.cn/tos-cn-i-73owjymdk6/25280eb13c12476592d8345fe5d5cfd0~tplv-73owjymdk6-jj-mark-v1:0:0:0:0:5o6Y6YeR5oqA5pyv56S-5Yy6IEAgd2Vpa3Vv:q75.awebp?policy=eyJ2bSI6MywidWlkIjoiMjc4MTEwNzg2MjY0MTk2NCJ9&rk3s=e9ecf3d6&x-orig-authkey=f32326d3454f2ac7e96d3d06cdbb035152127018&x-orig-expires=1752401940&x-orig-sign=xMgEUKjlOFd5TywQIT2D9eaQ%2BTY%3D" width="700px">
 
 # Multi-Head Attention
 
