@@ -1,5 +1,4 @@
-
-# Series Preface
+# Build, Train and Finetune GPT2 from Scratch
 
 > What I cannot create, I do not understand.
 >

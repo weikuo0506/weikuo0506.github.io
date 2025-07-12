@@ -34,12 +34,7 @@ I specialize in building scalable, intelligent platforms across ad tech, data in
 ---
 
 ## 📚 Blog Posts
-- [Build, Train and Finetune GPT2 from Stratch](https://weikuo0506.github.io/posts/HandcraftedLLM/BuildGPT2fromScratch%E2%80%94Embedding/
-  , https://weikuo0506.github.io/posts/HandcraftedLLM/BuildGPT2fromScratch%E2%80%94Attention/
-  , https://weikuo0506.github.io/posts/HandcraftedLLM/BuildGPT2fromScratch%E2%80%94Model/
-  , https://weikuo0506.github.io/posts/HandcraftedLLM/TrainGPT2fromScratch
-  , https://weikuo0506.github.io/posts/HandcraftedLLM/FinetuneGPT2fromScratch
-  )(2025)
+- [Build, Train and Finetune GPT2 from Stratch](https://weikuo0506.github.io/posts/HandcraftedLLM/GPT2-Series/)(2025)
 - [Building Enhanced QA with LangChain + LLM](https://developer.aliyun.com/article/1246744) (2023)
 - [Infrastructure Automation Practice: Terraform for Cloud Environment](https://developer.aliyun.com/article/1050123) (2022)
 - [From Distributed Consensus Algorithms to Blockchain Consensus Mechanisms](https://www.alibabacloud.com/blog/from-distributed-consensus-algorithms-to-the-blockchain-consensus-mechanism_595315)（2019）
