@@ -1,4 +1,5 @@
 # weikuo0506.github.io
-wikis and blogs
+Wikis and Blogs: 
 
-feel free to talk to me: weikuo0506@gmail.com
+Feel free to talk to me: weikuo0506@gmail.com
+My LinkedIn: https://www.linkedin.com/in/weikuo0506/
