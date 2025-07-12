@@ -210,21 +210,21 @@ Manual calculation is as follows:
 
 Therefore, the definition of cross entropy is extremely concise, and the calculation process is extremely simple.
 
-更严格的定义，以及其背后的数学与[信息论](https://en.wikipedia.org/wiki/Cross-entropy)原理，这里不再赘述。能用这么简洁的公式发明并定义出来信息的不确定性，是非常了不起的。但对于我们使用者来说，其实是特别简单的。
+The more rigorous definition, as well as the underlying mathematics and [information theory ](https://en.wikipedia.org/wiki/Cross-entropy)principles, will not be elaborated on here. It is truly remarkable to have invented and defined the uncertainty of information using such a concise formula. However, for us users, it is actually quite simple.
 
-而这里的交叉熵，其实就是模型训练过程中的损失，我们的目标是不断使得loss尽可能低。完全理想情况下，loss= -log(1) = 0。
+The cross entropy here is actually the loss during the Model Training process, and our goal is to continuously minimize the loss as much as possible. Under completely ideal conditions, loss = -log(1) = 0.
 
 # Loss Over Batchs
 
-上面我们只计算了单个token的交叉熵，但在训练过程中，其实我们关心的不是单点token的交叉熵，而是一个批次、所有sample、所有预测token的平均值。
+Above, we only calculated the cross entropy of a single token. However, during Model Training, what we actually care about is not the cross entropy of a single token, but the average value of all predicted tokens across all samples in a batch.
 
-定义如下：
+is defined as follows:
 
 $$\mathcal{L}_{\text{batch}} = - \frac{1}{N} \sum_{n=1}^N \sum_{i=1}^C y_i^{(n)} \log \left( \hat{y}_i^{(n)} \right)$$
 
-其实就是不断在sample和batch的维度上取平均值。
+Actually, it is constantly taking the average over the dimensions of sample and batch.
 
-我们手动计算下上述targets的交叉熵：
+Let's manually calculate the cross entropy of the above targets:
 
 ```
 neg_log_probas = torch.log(target_probas) * -1
@@ -239,9 +239,9 @@ print("loss: ",loss)
 >
 > loss: tensor(11.0642)
 
-需要注意的是，最终计算出的loss是一个标量，因为我们在不断求平均，最终只得出一个loss。
+It should be noted that the finally calculated loss is a scalar, because we keep taking the average and ultimately only obtain one loss.
 
-而pytorch框架已经集成了Cross entropy loss的计算，只需要调用下即可，如下：
+The PyTorch framework has already integrated the calculation of cross entropy loss, and you only need to call it, as shown below:
 
 ```
 print("shape of inputs: ",logits.shape) #(batch_size, seq_len, vocab_size)
@@ -266,23 +266,23 @@ print("loss: ",loss)
 >
 > loss: tensor(11.0642)
 
-可见跟我们手算出的，结果是一样的。
+It can be seen that the result is the same as what we calculated manually.
 
 # Perplexity
 
-在模型训练中，经常用的另一个指标是perplexity困惑度，而其定义非常简单：
+In Model Training, another commonly used metric is perplexity, and its definition is very simple:
 
 $$\mathrm{Perplexity} = e^{\mathcal{L}}$$
 
-即困惑度是交叉熵损失的指数。
+That is, perplexity is the exponential of cross entropy loss.
 
-只不过是换了一种表达形式，从直觉上理解，困惑度也应该越小越好：
+It is just a different form of expression. Intuitively, the smaller the perplexity, the better:
 
-1）理想极端情况下，loss=0, perplexity=1，表示仅有1种选择，模型接近完美。
+1) Under ideal extreme conditions, loss = 0, perplexity = 1, indicating only 1 choice, and the model is nearly perfect.
 
-2）极端最差情况下，loss=inf，perplexity=inf，表示候选有无数种选择，相当于模型随机从词表中挑选，模型接近随机输出。当然，通常情况下，perplexity应该不超过词表大小。
+2) In the extreme worst-case scenario, loss=inf and perplexity=inf, indicating that there are an infinite number of choices for candidates, which is equivalent to the model randomly selecting from the vocabulary, and the model is close to random output. Of course, under normal circumstances, perplexity should not exceed the size of the vocabulary.
 
-我们计算下上例的perplexity如下：
+We calculate the perplexity of the above example as follows:
 
 ```
 perplexity = torch.exp(loss)
@@ -292,15 +292,15 @@ print("perplexity: ",perplexity)
 
 > perplexity: tensor(63842.8828)
 
-可见，困惑度其实已经超过了词表大小（因为尚未训练，这是可能出现的），也显示我们的模型确实在随机胡言乱语。
+As can be seen, the perplexity has actually exceeded the size of the vocabulary (which is possible because it has not been trained yet), also indicating that our model is indeed randomly babbling.
 
 # Loss on data sets
 
-而在训练过程中，我们更关心的是大模型在整个训练集和验证集上的损失。
+During the training process, what we are more concerned about is the loss of the large model on the entire training dataset and validation set.
 
-我们处理这篇短文，分割出训练集和验证集，创建出各自的data loader，并计算batch和data loader维度的loss。
+We process this short text, split it into a training dataset and a validation set, create their respective data loaders, and calculate the loss at the batch and data loader dimensions.
 
-首先，简单读取并处理文本，原文有很多空行，如果不去除，大模型就会学习到很多不必要的空格空行；处理如下：
+First, simply read and process the text. The original text has many blank lines, and if they are not removed, the large model will learn many unnecessary spaces and blank lines; the processing is as follows:
 
 ```
 # If you didn't clean the empty lines, LLM may learn to add too many blanks.
@@ -325,7 +325,7 @@ print("Tokens: ",len(tokens))
 >
 > Tokens: 18134
 
-我们把80%的文本作为训练集，其余是测试集，分别创建出data loader：
+We use 80% of the text as the training dataset and the rest as the test set, and create data loaders respectively:
 
 ```
 from gpt2_v1 import GPT_CONFIG_124M
@@ -354,7 +354,7 @@ val_loader = dataloader_v1(
 >
 > Val data: 17755
 
-简单查看并验证下数据维度：
+Simply check and verify the data dimensions:
 
 ```
 print("Train dataloader: ", len(train_loader))
@@ -373,9 +373,9 @@ print(val_first_batch[0].shape, val_first_batch[1].shape)
 >
 > torch.Size([2, 1024]) torch.Size([2, 1024])
 
-可见，全文总共大概18000个token，取前18000*80%=14400作为训练集；而每个batch有2个样本；最大窗口是1024；所以训练集dataloader有14400/2/1024=7个。相应的，验证集仅有2个；所以是极小的数据集，仅供演示目的。
+As can be seen, the entire text has approximately 18,000 tokens in total. We take the first 18,000 * 80% = 14,400 tokens as the training dataset; each batch contains 2 samples; the maximum window size is 1024; therefore, the training dataset dataloader has 14,400 / 2 / 1024 = 7 batches. Correspondingly, the validation set has only 2 batches; so it is a very small dataset, intended solely for demonstration purposes.
 
-然后，我们分别计算每个batch和整个loader级别的损失，如下：
+Then, we calculate the loss for each batch and at the entire loader level respectively, as follows:
 
 ```
 def loss_batch(inputs, targets, model, device):
@@ -402,9 +402,9 @@ def loss_loader(loader, model, device, num_batches=None):
     return total_loss / num_batches
 ```
 
-其实上述代码，就是在不断的求loss，然后取平均。
+Actually, the above code is constantly calculating the loss and then taking the average.
 
-现在，我们可以查看下当前的模型状态，对于测试集和验证集的初始loss，如下：
+Now, we can check the current model status. The initial losses for the test set and validation set are as follows:
 
 ```
 # MPS may have some issues when training
@@ -427,15 +427,15 @@ print("Val loss: ", val_loss)
 >
 > Val loss: 10.98751163482666
 
-可见，loss非常高；这符合预期，毕竟我们的模型尚未进行任何训练。
+As can be seen, the loss is very high; this is as expected, after all, our model has not undergone any training yet.
 
-注：device选择上优先GPU cuda，其次是MacBook的mps，如果都没有选择cpu；在演示环节差异不大；有时候mps在训练过程pytorch支持可能有问题，可切回cpu。最关键的是训练过程中要确保model、inputs、target，以及创建出的张量都在同一个device上。否则会有类似报错：all input tensors must be on the same device.
+Note: When selecting a device, GPU cuda is prioritized, followed by MacBook's mps, and if neither is available, cpu is selected; the difference is not significant during the demonstration; sometimes pytorch support for mps may have issues during the training process, and you can switch back to cpu. The most critical thing is to ensure that the model, inputs, targets, and created tensors are all on the same device during the training process. Otherwise, there will be an error similar to: all input tensors must be on the same device.
 
 # Train
 
-现在让我们用上面的短文训练模型。我们希望进行10个epoch，而每个epoch是指的完整地处理完训练集中的所有样本。
+Now let's train the model using the above passage. We aim to perform 10 epochs, where each epoch refers to completely processing all samples in the training dataset.
 
-训练过程中，最核心的代码如下：
+During the training process, the most core code is as follows:
 
 > `optimizer.zero_grad()`
 >
@@ -445,19 +445,19 @@ print("Val loss: ", val_loss)
 >
 > `optimizer.step()`
 
-其中：
+Where:
 
-1）`optimizer.zero_grad()` 用于在每个批次之初清零梯度。这是因为pytorch的梯度自动累积，而每个批次的训练需要独立的梯度。
+1)`optimizer.zero_grad()` is used to zero out the gradients at the beginning of each batch. This is because PyTorch automatically accumulates gradients, and each batch of training requires independent gradients.
 
-`2）``loss = loss_batch(input_batch, target_batch, model, device)`` `用于计算当前批次的损失值。实际上是前向传播过程，得到模型输出，并计算损失。
+`2)``loss = loss_batch(input_batch, target_batch, model, device)``  is used to calculate the loss value of the current batch. In fact, it is the forward propagation process, which obtains the model output and calculates the loss. `
 
-3）`loss.backward()` 这行代码的作用是执行反向传播算法。它会根据损失函数，利用链式法则计算每个可训练参数的梯度（也就是偏导数）。计算得到的梯度会被保存在各个参数的`.grad`属性中。
+3)`loss.backward()` This line of code is used to execute the back propagation algorithm. It calculates the gradient (i.e., partial derivative) of each trainable parameter using the chain rule based on the loss function. The calculated gradients are stored in the `.grad` attribute of each parameter.
 
-4）`optimizer.step()` 这行代码的作用是根据计算得到的梯度，按照特定的优化策略（如 SGD、Adam 等）来更新模型的参数。
+4)`optimizer.step()` This line of code updates the model's parameters according to the computed gradients and a specific optimization strategy (such as SGD, Adam, etc.).
 
-总结下就是：梯度清零 -> 前向传播 -> 反向传播 -> 参数更新。
+To summarize, it is: gradient zeroing -> forward propagation -> back propagation -> parameter update.
 
-完整的代码如下：
+The complete code is as follows:
 
 ```
 
@@ -498,9 +498,9 @@ def generate_and_print_sample(model, tokenizer, start_context, device):
     model.train()
 ```
 
-在上述代码中，我们在每个epoch结束，增加了generate_and_print_sample用于直观地评测模型输出效果；而每个batch相当于一个step；每eval_freq步，我们print输出在训练集和验证集上的损失，以及当前已处理的token总数。
+In the above code, we added generate_and_print_sample at the end of each epoch to intuitively evaluate the output effect of the model; each batch is equivalent to a step; every eval_freq steps, we print the losses on the training dataset and validation set, as well as the total number of tokens processed so far.
 
-因为我们的短文实在太小，为了演示方便，我们把context_length从1024调小到128；总共训练10个epoch，代码如下：
+Since our short text is really too small, for the convenience of demonstration, we adjusted the context_length from 1024 to 128; trained for a total of 10 epochs, and the code is as follows:
 
 ```
 import copy
@@ -707,9 +707,9 @@ print(f"Training completed in {elapsed:.2f} minutes.")
 >
 > Training completed in 2.01 minutes.
 
-可见，训练在普通MacBook上使用mps在2分钟左右就能完成；测试的文本补全从随机乱码，变得稍微有些合理性；训练集的loss在快速下降；但是验证集的loss几乎没下降。这是明显的过拟合现象，是因为我们的模型本身很复杂，但是所使用的训练样本太过简单。后续，我们会尝试在更大数据集上训练。此处仅做示例用途。
+As can be seen, training on a regular MacBook using mps can be completed in about 2 minutes; the text completion in testing has changed from random gibberish to being slightly more reasonable; the loss of the training dataset is rapidly decreasing; however, the loss of the validation set has hardly decreased. This is an obvious Overfitting phenomenon, because our model itself is very complex, but the training samples used are too simple. Subsequently, we will attempt to train on a larger dataset. This is only for illustrative purposes here.
 
-我们也可以可视化输出一下loss和已训练token的变化过程，如下：
+We can also visualize the changes in loss and trained tokens, as follows:
 
 ```
 import matplotlib.pyplot as plt
@@ -738,7 +738,7 @@ epochs_tensor = torch.linspace(0, num_epochs, len(train_losses))
 plot_losses(epochs_tensor, tokens_seen, train_losses, val_losses)
 ```
 
-![](https://p0-xtjj-private.juejin.cn/tos-cn-i-73owjymdk6/c2d3b7123b8c4a8a8930b390c315e421~tplv-73owjymdk6-jj-mark-v1:0:0:0:0:5o6Y6YeR5oqA5pyv56S-5Yy6IEAgd2Vpa3Vv:q75.awebp?policy=eyJ2bSI6MywidWlkIjoiMjc4MTEwNzg2MjY0MTk2NCJ9&rk3s=e9ecf3d6&x-orig-authkey=f32326d3454f2ac7e96d3d06cdbb035152127018&x-orig-expires=1752401395&x-orig-sign=q4glwJcHlyFBJUvB%2BWWX3rlQEm8%3D)
+![](https://p0-xtjj-private.juejin.cn/tos-cn-i-73owjymdk6/f6e72e968e2849deb63562dd4fdaa2b4~tplv-73owjymdk6-jj-mark-v1:0:0:0:0:5o6Y6YeR5oqA5pyv56S-5Yy6IEAgd2Vpa3Vv:q75.awebp?policy=eyJ2bSI6MywidWlkIjoiMjc4MTEwNzg2MjY0MTk2NCJ9&rk3s=e9ecf3d6&x-orig-authkey=f32326d3454f2ac7e96d3d06cdbb035152127018&x-orig-expires=1752401720&x-orig-sign=s%2FiQ2vIpX6dSZVAD4TJgbG0jyhY%3D)
 
 # Decoding Strategies
 
@@ -749,7 +749,7 @@ plot_losses(epochs_tensor, tokens_seen, train_losses, val_losses)
 -   Greedy decoding: Select the word with the highest probability (argmax) at each step.
 -   Sampling decoding: Randomly sample the next word from the probability distribution, for example using torch.multinomial.
 
-我们可以使用训练好的模型补全文本，如下：
+We can use the trained model to complete the text, as follows:
 
 ```
 model.eval()
@@ -761,7 +761,7 @@ print("Output text:\n", result)
 >
 > at the start of the Treaty of Bucharest was formally annulled by the Armistice of
 
-在指定随机数的情况下，我们多次运行相同的start context，结果总是一样的。这是因为我们总是从生成的词表概率表中选择概率最大的那个，也就是如下代码中使用了argmax:
+When a random number is specified, if we run the same start context multiple times, the results are always the same. This is because we always select the one with the highest probability from the generated vocabulary probability table, which is the use of argmax in the following code:
 
 ```
 import torch
@@ -799,13 +799,13 @@ print("Next token: ", next_token)
 >
 > Next token: Treaty
 
-这属于Greedy Decoding，即总是选择概率最大的token。
+This belongs to Greedy Decoding, which always selects the token with the highest probability.
 
 ## Sample Decoding
 
-而另一种更随机的decode方式是Sample Decoding，即按照概率分布随机选择token。
+Another more random decoding method is Sample Decoding, which randomly selects tokens according to the probability distribution.
 
-而实现的方式也非常简单，只需要把上述代码中的argmax改为multinomial，如下：
+The way to achieve this is also very simple, just change argmax in the above code to multinomial, as follows:
 
 ```
 torch.manual_seed(123)
@@ -819,7 +819,7 @@ print("Next token: ", next_token)
 >
 > Next token: French
 
-我们可以运行100次，直观感受下，按照概率采样，next token的生成分布情况，如下：
+We can run it 100 times to intuitively feel the generation distribution of the next token according to probability sampling, as follows:
 
 ```
 def print_sampled_tokens(probas):
@@ -853,9 +853,9 @@ print_sampled_tokens(probas)
 >
 > 28 x Treaty
 
-可见其中“Treaty”在100次中有28次；而其他词也至少出现了2次以上。
+It can be seen that "Treaty" appears 28 times out of 100, while other words appear at least 2 times.
 
-我们也可以采用模拟的方式，去理解decoding strategy的差异。代码如下，我们模拟了补全‘At the start of the’可能的结果词，并按照正态分布生成了概率表：
+We can also use simulation to understand the differences in decoding strategies. The code is as follows. We simulated the possible completion words for 'At the start of the' and generated a probability table according to the normal distribution:
 
 ```
 import torch
@@ -883,9 +883,9 @@ print(f"Next generated token: {inverse_vocab[next_token_id]}")
 
 > Next generated token: day
 
-如果采用argmax，下一次总是会得到day，因为day的概率最大。
+If argmax is used, the next time will always result in day, because the probability of day is the highest.
 
-而如果采用multinomial，并运行100次，得到词的分布如下:
+And if we use multinomial and run it 100 times, the distribution of the words obtained is as follows:
 
 ```
 def print_sampled_tokens(probas):
@@ -914,15 +914,15 @@ print_sampled_tokens(probas)
 >
 > 0 x movement
 
-可见采用multinomial的sample decoding方法带来了更多随机性。
+It can be seen that the sample decoding method using multinomial brings more randomness.
 
 # Top-k Sampling
 
-但multinomial增加随机性带来的后果是，概率很低的词也会出现；而有的时候，我们只想让概率较高的词出现，而想排除掉概率很低的词。
+However, the consequence of multinomial adding randomness is that words with very low probabilities may also appear; sometimes, we only want words with higher probabilities to appear and want to exclude words with very low probabilities.
 
-Top-k就是只在概率最高的前K个词中进行采样。
+Top-k means sampling only from the top K words with the highest probabilities.
 
-如在上述示例中，我们仅选取top 3的token，如下：
+As shown in the above example, we only select the top 3 tokens, as follows:
 
 ```
 print(next_token_logits)
@@ -938,7 +938,7 @@ print("top_k_indices: ", top_k_indices)
 >
 > top_k_indices: tensor([5, 1, 0])
 
-我们得到了top 3的原始logits值，最低值是-0.4459；接下来，我们只需要把低于最低值的其他logits遮蔽掉即可，而遮蔽方法也非常简单，只需要填充-inf，后续softmax之后会变为0，如下：
+We obtained the original logits values of the top 3, with the lowest value being -0.4459; next, we only need to mask out other logits below the lowest value, and the masking method is also very simple, which only requires filling with -inf, and it will become 0 after the subsequent softmax, as follows:
 
 ```
 # Mask out logits that are not in the top-k by setting them to -inf
@@ -976,13 +976,13 @@ print_sampled_tokens(topk_probas)
 >
 > 0 x movement
 
-可见，在new_logits中我们只保留了top 3的值；而在生成的概率表中，也仅有top 3；而生成的token也仅有3种。
+As can be seen, in new_logits we only retained the top 3 values; in the generated probability table, there are also only the top 3; and the generated tokens are also only 3 types.
 
 # Temperature
 
-而温度是另一种更常见的控制随机性的方法，而其实现也特别简单，就是对模型输出的原始logits进行scale：scaled_logits = logits / temperature。
+Temperature is another more common method for controlling randomness, and its implementation is particularly simple, which is to scale the raw logits output by the model: scaled_logits = logits / temperature.
 
-示例代码如下：
+Sample code is as follows:
 
 ```
 def softmax_with_temperature(logits, temperature):
@@ -996,7 +996,7 @@ temperatures = [1.0, 0.3, 1.5]
 scaled_probas = [softmax_with_temperature(next_token_logits, T) for T in temperatures]
 ```
 
-我们可以通过画图，直观看下不同温度下的生成token分布：
+We can intuitively visualize the distribution of generated tokens at different temperatures by drawing a graph:
 
 ```
 import torch
@@ -1020,13 +1020,13 @@ plt.tight_layout()
 plt.show()
 ```
 
-![](https://p0-xtjj-private.juejin.cn/tos-cn-i-73owjymdk6/589160c819f2412eb331997f838548f2~tplv-73owjymdk6-jj-mark-v1:0:0:0:0:5o6Y6YeR5oqA5pyv56S-5Yy6IEAgd2Vpa3Vv:q75.awebp?policy=eyJ2bSI6MywidWlkIjoiMjc4MTEwNzg2MjY0MTk2NCJ9&rk3s=e9ecf3d6&x-orig-authkey=f32326d3454f2ac7e96d3d06cdbb035152127018&x-orig-expires=1752401395&x-orig-sign=qu054Qk%2BM4Y5Jx6x1m%2FrA27NfTw%3D)
+![](https://p0-xtjj-private.juejin.cn/tos-cn-i-73owjymdk6/f51d37749b8845aa8a6bd6845e8a27c9~tplv-73owjymdk6-jj-mark-v1:0:0:0:0:5o6Y6YeR5oqA5pyv56S-5Yy6IEAgd2Vpa3Vv:q75.awebp?policy=eyJ2bSI6MywidWlkIjoiMjc4MTEwNzg2MjY0MTk2NCJ9&rk3s=e9ecf3d6&x-orig-authkey=f32326d3454f2ac7e96d3d06cdbb035152127018&x-orig-expires=1752401720&x-orig-sign=%2B5pZ%2FjbQi8Ru%2B8bziozF9Wwx5ek%3D)
 
-可见，temperature越高，分布越平坦，随机性越大；而temperature越低，分布越尖锐，倾向于集中在概率较大的词，确定性越强，随机性越低。
+It can be seen that the higher the temperature, the flatter the distribution, and the greater the randomness; conversely, the lower the temperature, the sharper the distribution, with a tendency to concentrate on words with higher probabilities, resulting in stronger certainty and lower randomness.
 
 # Generate text with temperature and top_k
 
-我们可以将上述top_k和temperate结合起来，优化生成文本的代码，如下：
+We can combine the above top_k and temperature to optimize the code for generating text, as follows:
 
 ```
 def generate_text_simple(model, idx, max_new_tokens, context_size, temperature=0.0, top_k=None, eos_id=None):
@@ -1070,7 +1070,7 @@ def generate_text_simple(model, idx, max_new_tokens, context_size, temperature=0
     return idx
 ```
 
-再次尝试生成文本：
+Try generating text again:
 
 ```
 torch.manual_seed(123)
@@ -1091,19 +1091,19 @@ print("Output text:\n", tensor_to_text(token_ids, tokenizer))
 >
 > at the start of the French troops had been unjust. On 3 November 1918 and the German leaders,
 
-在上例中，我们在generate_text_simple中增加了top_k和temperature参数，以更好地控制模型输出的随机性。
+In the above example, we added the top_k and temperature parameters to generate_text_simple to better control the randomness of the model output.
 
-简要总结下控制随机性的方法：
+Briefly summarize the methods for controlling randomness:
 
-1）argmax与multinomial本质上是不改变输入的概率表，只改变采样的方式；argmax是确定性最大值选取；multinational是按概率随机性采样。
+1) argmax and multinomial essentially do not change the probability table of the input, but only change the sampling method; argmax is a deterministic maximum value selection; multinomial is a probabilistic random sampling.
 
-2）top-k是过滤掉低概率的值，本质上是对概率表做截断操作。
+2) Top-k filters out low-probability values, essentially performing a truncation operation on the probability table.
 
-3）temperate是缩放原始logits，本质上改变了概率表的分布。
+3) Temperate scales the original logits, essentially changing the distribution of the probability table.
 
 # Train on larger datasets
 
-我们也可以尝试在更大数据集上训练模型，如可以使用HuggingFace的wikitext，如下：
+We can also try training the model on a larger dataset, such as using HuggingFace's wikitext, as follows:
 
 ```
 from datasets import load_dataset
@@ -1138,4 +1138,4 @@ dataset = load_dataset("wikitext", "wikitext-2-raw-v1")
 >
 > })
 
-具体训练方法类似，有兴趣可以自行尝试。
+The specific training methods are similar, and those interested can try them on their own.

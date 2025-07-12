@@ -2,7 +2,7 @@
 
 We have already implemented Embedding and Multi-Head Attention, and now we will start implementing the complete gpt2. The overall architecture of gpt2 is as shown in[the following figure](https://medium.com/@vipul.koti333/from-theory-to-code-step-by-step-implementation-and-code-breakdown-of-gpt-2-model-7bde8d5cecda):
 
-![](https://p0-xtjj-private.juejin.cn/tos-cn-i-73owjymdk6/602d7f00352040bbaf3f248d08afb337~tplv-73owjymdk6-jj-mark-v1:0:0:0:0:5o6Y6YeR5oqA5pyv56S-5Yy6IEAgd2Vpa3Vv:q75.awebp?policy=eyJ2bSI6MywidWlkIjoiMjc4MTEwNzg2MjY0MTk2NCJ9&rk3s=e9ecf3d6&x-orig-authkey=f32326d3454f2ac7e96d3d06cdbb035152127018&x-orig-expires=1752401277&x-orig-sign=gJX2WqlXXLijc2TmIrwuygNrzCg%3D)
+![](https://p0-xtjj-private.juejin.cn/tos-cn-i-73owjymdk6/a601da06b6804a0cac90701d6a55a79f~tplv-73owjymdk6-jj-mark-v1:0:0:0:0:5o6Y6YeR5oqA5pyv56S-5Yy6IEAgd2Vpa3Vv:q75.awebp?policy=eyJ2bSI6MywidWlkIjoiMjc4MTEwNzg2MjY0MTk2NCJ9&rk3s=e9ecf3d6&x-orig-authkey=f32326d3454f2ac7e96d3d06cdbb035152127018&x-orig-expires=1752401768&x-orig-sign=dOR7Q8MfxWHsf9Rhaf%2BJdtXo%2F6I%3D)
 
 Where:
 
@@ -226,35 +226,35 @@ print("var:\n", var)
 >
 > [1.0000]], grad_fn=<VarBackward0>)
 
-结果跟上面相同。后续可直接使用pytorch自带的nn.LayerNorm()类；需要注意的是这并不是函数，而是pytorch中的层/类，很方便利用nn.Sequential进行层间堆叠。
+The result is the same as above. Subsequently, you can directly use the nn.LayerNorm() class provided by PyTorch; it should be noted that this is not a function, but a layer/class in PyTorch, which is very convenient for stacking layers using nn.Sequential.
 
 # Activations: Relu, GELU, SwiGLU
 
-在神经网络中，除了前述线性变换（如矩阵投影、MHA、归一化等）之外，还需要引入非线性激活，以增强网络的表达能力。
+In neural networks, in addition to the aforementioned linear transformations (such as matrix projection, MHA, normalization, etc.), it is also necessary to introduce non-linear activation to enhance the network's expressive power.
 
-可以直观地理解：
+can be intuitively understood:
 
-1）所有的线性变换，本质上都是矩阵操作，保持的都是线性结构。
+1) All linear transformations, in essence, are matrix operations that preserve linear structure.
 
-2）线性变换的目的是进行不同空间之间的映射。
+2) The purpose of linear transformation is to perform mapping between different spaces.
 
-3）线性变换可以写成矩阵乘法形式y=W⋅x+b，具有加法封闭性和缩放封闭性。
+3) A linear transformation can be written in the form of matrix multiplication y = W ⋅ x + b, and it has the properties of closure under addition and closure under scaling.
 
-4）如旋转、缩放、投影、剪切等，都属于线性变换。线性叠加后依然是线性的。
+4) Transformations such as rotation, scaling, projection, and shearing all belong to linear transformations. After linear superposition, they remain linear.
 
-但是线性无法引入弯曲、拐点和门控等机制，从理论上无法拟合所有函数。
+However, linearity cannot introduce mechanisms such as curvature, inflection points, and gating, and theoretically cannot fit all functions.
 
-而为了能表达任意复杂函数，只需要引入看似非常简单的非线性激活函数。
+And to express any complex function, it only requires introducing a seemingly very simple non-linear activation function.
 
-这背后有比较严格的数学理论（[Universal approximation theorem](https://en.wikipedia.org/wiki/Universal_approximation_theorem)），其简化思想大意是：
+Behind this lies a relatively rigorous mathematical theory ([Universal approximation theorem](https://en.wikipedia.org/wiki/Universal_approximation_theorem)), whose simplified idea is:
 
-> **一个包含至少一层非线性激活函数的前馈神经网络，只要隐藏层的神经元足够多，就可以逼近任意连续函数（在紧致区间上），误差可以小到任意程度。**
+> **A** **feedforward neural network** **containing at least one layer of nonlinear activation functions can approximate any continuous function (on a compact interval) with arbitrarily small error, as long as the number of nerve cells in the** **hidden layer** **is large enough.**
 
-也就是说只要给模型在线性变换的基础上，来一点点非线性，从理论上来讲，只要模型足够深，可以表达任意复杂函数。
+That is to say, as long as we introduce a bit of non-linearity to the model on the basis of linear transformation, theoretically, as long as the model is deep enough, it can represent any complex function.
 
-然而，非线性激活函数，其实非常简单，最简单的哪怕只是一段折线，其实就可以作为非线性激活函数。
+However, nonlinear activation functions are actually very simple; even the simplest, such as a piecewise linear function, can actually serve as a nonlinear activation function.
 
-我们可以直接给出代码，看图说话：
+We can directly provide the code and explain based on the figure:
 
 ```
 import torch
@@ -290,21 +290,21 @@ plt.tight_layout()
 plt.show()
 ```
 
-![](https://p0-xtjj-private.juejin.cn/tos-cn-i-73owjymdk6/a9b7bd0ef1134958b2e26b6acf76d9de~tplv-73owjymdk6-jj-mark-v1:0:0:0:0:5o6Y6YeR5oqA5pyv56S-5Yy6IEAgd2Vpa3Vv:q75.awebp?policy=eyJ2bSI6MywidWlkIjoiMjc4MTEwNzg2MjY0MTk2NCJ9&rk3s=e9ecf3d6&x-orig-authkey=f32326d3454f2ac7e96d3d06cdbb035152127018&x-orig-expires=1752401277&x-orig-sign=yVK5e%2BaeeIF9Z26r4yReq11wYm8%3D)
+![](https://p0-xtjj-private.juejin.cn/tos-cn-i-73owjymdk6/b99ac31726a34020bb19a477658fb909~tplv-73owjymdk6-jj-mark-v1:0:0:0:0:5o6Y6YeR5oqA5pyv56S-5Yy6IEAgd2Vpa3Vv:q75.awebp?policy=eyJ2bSI6MywidWlkIjoiMjc4MTEwNzg2MjY0MTk2NCJ9&rk3s=e9ecf3d6&x-orig-authkey=f32326d3454f2ac7e96d3d06cdbb035152127018&x-orig-expires=1752401768&x-orig-sign=uLfuEvCkqpLBk8b28dKzvuH8U%2FE%3D)
 
-可见，最简单地就是ReLU，其实就是初中学的分段函数。而现在更常用的GELU和SwiGLU，只不过是增加了一些曲度，让其更平滑，方便计算梯度。具体的函数定义很boring，这里不赘述。后续我们会使用GELU。
+As can be seen, the simplest is ReLU, which is actually the piecewise function learned in junior high school. The more commonly used GELU and SwiGLU nowadays simply add some curvature to make it smoother and facilitate gradient calculation. The specific function definitions are quite boring, so I won't go into details here. We will use GELU later.
 
 # FeedForward Network
 
-GPT的模型架构中，还有非常重要的前馈神经网络FFN层，如下。
+In the model architecture of GPT, there is also a very important feedforward neural network (FFN) layer, as follows.
 
 $$\text{FFN}(x) = \text{Linear}_2(\ \text{Activation}(\ \text{Linear}_1(x)\ )\ )$$
 
-也就是对于输入 x → 线性变换 → 非线性激活（ReLU/GELU）→ 再次线性变换 → 输出。
+That is, for input x → linear transformation → nonlinear activation (ReLU/GELU) → linear transformation again → output.
 
-说白了，就是在两个线性层中间，夹带一个非线性层，以增强模型的表达能力。通常来说，需要先在第一个线性层升维，做非线性激活，然后再降维，回到最初的维度。
+Put simply, it involves inserting a non-linear layer between two linear layers to enhance the model's expressive power. Generally speaking, it is necessary to first increase the dimensionality in the first linear layer, perform non-linear activation, and then reduce the dimensionality back to the original dimension.
 
-我们直接看代码示例：
+Let's directly look at the code example:
 
 ```
 class FeedForward(nn.Module):
@@ -334,15 +334,15 @@ print("model structure: \n",FeedForward(GPT_CONFIG_124M))
 >
 > )
 
-可见，在上面例子中，我们先从768维，扩大4倍到3072维；然后做GeLU激活操作；再降回到768维。
+As can be seen, in the above example, we first expand from 768 dimensions to 3072 dimensions by a factor of 4; then perform the GeLU activation operation; and finally reduce it back to 768 dimensions.
 
 # ShortCut Connections
 
-神经网络的优化依赖梯度计算，可以说梯度是神经网络训练的发动机。当现代神经网络层数越来越惊人的时候，比较大的现实工程难题是梯度爆炸与梯度消失；相信大家并不陌生。
+The optimization of neural networks relies on layer computation, and it can be said that layer is the engine of neural network training. When the number of layers in modern neural networks becomes increasingly astonishing, a relatively significant practical engineering challenge is layer explosion and layer vanishing; I believe everyone is familiar with this.
 
-反向传播Backpropagation是神经网络中计算梯度的核心算法，其思想也非常简单，依然是利用求导的链式法则，逐层传递，计算梯度。有兴趣可以参考karpathy关于[autograd](https://github.com/karpathy/micrograd)的介绍，这里不再赘述。
+Backpropagation is the core algorithm for computing gradients in neural networks, and its concept is also very simple, still using the chain rule of differentiation to propagate layer by layer and compute gradients. Those interested can refer tokarpathy's introduction to[autograd](https://github.com/karpathy/micrograd), which will not be repeated here.
 
-自动微分也可以说是pytorch的灵魂，我们可以直接通过示例，感受下计算过程中的梯度变化，代码如下：
+Automatic differentiation can also be said to be the soul of PyTorch. We can directly experience the layer changes during the calculation process through examples. The code is as follows:
 
 ```
 import torch
@@ -373,9 +373,9 @@ def print_gradients(model,x):
             print(f"{name} has gradient mean of {param.grad.abs().mean().item()}")
 ```
 
-在上述代码中，我们定义了多个Linear+Gelu的堆叠，而在forward中，最简单的是直接返回layer(x)。
+In the above code, we define multiple stacks of Linear+Gelu, and in forward, the simplest approach is to directly return layer(x).
 
-我们给模型一个模拟输入，生成1 x 4的张量作为输入，看下每层的梯度如何，如下：
+We give the model a simulated input, generate a 1 x 4 tensor as the input, and see how the layer of each layer behaves, as follows:
 
 ```
 layer_sizes = [4] * 6
@@ -416,9 +416,9 @@ print_gradients(model, x)
 >
 > layers.4.0.weight has gradient mean of 0.014868268743157387
 
-可见，示例网络总共有5层；我们注意到layers0的梯度特别小3e-5，已经接近消失。我们重点关注前几层，因为依据反向传播的原理，梯度是从最后一层往前开始推算的，所以最容易出问题的是模型的前面的层。
+As can be seen, the example network has a total of 5 layers; we note that the gradient of layer0 is particularly small, 3e-5, and is already close to vanishing. We focus on the first few layers because, according to the principle of backpropagation, gradients are calculated starting from the last layer and moving forward, so the layers at the front of the model are most prone to problems.
 
-现在我们打开use_shortcut=True，再次运行，结果如下：
+Now we turn on use_shortcut=True and run it again, and the results are as follows:
 
 > layers.0.0.weight has gradient mean of 0.06876879185438156
 >
@@ -430,21 +430,21 @@ print_gradients(model, x)
 >
 > layers.4.0.weight has gradient mean of 0.173927441239357
 
-可见，layers0的梯度神奇地增大到了6e-2；而唯一的变化是上述forward中的返回值从layer(x)变成了x+layer(x)。
+It can be seen that the gradient of layers0 has magically increased to 6e-2; the only change is that the return value in the above forward has changed from layer(x) to x+layer(x).
 
-这便是shortcut的神奇之处，看起来只是在原输出F(x)的基础上，又加上了输入x，如下：
+This is the magic of shortcut, which seems to simply add the input x on top of the original output F(x), as follows:
 
 $$ y = F(x) + x $$
 
-隐含的意思是，此时F(x)代表了真正的输出y与输入x之间的差异，因此又被称为残差网络ResNet。
+The implied meaning is that at this time, F(x) represents the difference between the true output y and the input x, and is therefore also known as the Residual Network (ResNet).
 
-现在回头看确实非常简单，但是站在当时的时间节点，能够率先想到，并意识到其背后的意义，其实并不简单。
+Looking back now, it does seem very simple, but standing at that time, being the first to think of it and realizing the significance behind it was actually not easy.
 
-直觉上理解，shortcut相当于给非常深的神经网络的不同层之间，增加了新的通路，允许信息跨层流动；这个“跨层通道”，让信息和梯度都可以跳跃式传播，从而提升训练稳定性与效率。
+Intuitively understood, a shortcut is equivalent to adding new pathways between different layers of very deep neural networks, allowing information to flow across layers; this "cross-layer channel" enables both information and layer to propagate in a leapfrog manner, thereby enhancing training stability and efficiency.
 
 # Transformer Code
 
-有了上述的实现，我们可以直接结合起来，给出Transformer的真实代码，如下：
+With the above implementations, we can directly combine them to present the actual code for the Transformer, as follows:
 
 ```
 import torch
@@ -518,9 +518,9 @@ class TransformerBlock(nn.Module):
         return x
 ```
 
-其中MHA代码来自Attention模块。
+Among them, the MHA code comes from the Attention module.
 
-我们可以直接调用，检查下输出，如下：
+We can directly call it, check the output, as follows:
 
 ```
 torch.manual_seed(123)
@@ -537,11 +537,11 @@ print("Output shape:", output.shape)
 >
 > Output shape: torch.Size([2, 4, 768])
 
-可见，经过Transformer的一系列操作，最终输出的维度和输入是完全相同的。
+It can be seen that after a series of operations by the Transformer, the dimension of the final output is exactly the same as that of the input.
 
 # GPT-2 code
 
-我们再把Transformer堆叠12次，就得到了完整的GPT-2代码。
+By stacking the Transformer 12 more times, we obtain the complete GPT-2 code.
 
 ```
 import torch
@@ -571,7 +571,7 @@ class GPT2Model(nn.Module):
         return logits
 ```
 
-我们依然可以给模型模拟输入，看下结果，如下
+We can still simulate input to the model and check the results, as follows
 
 ```
 torch.manual_seed(123)
@@ -590,11 +590,11 @@ print("Output shape:", out.shape)
 >
 > Output shape: torch.Size([2, 5, 50257])
 
-可见，输出的维度的最后一维，依然是等于vocab size。这里我们输出的是原始的logits，尚未经过softmax变换。softmax后续会详细讲，只是相当于做了概率归一化。
+As can be seen, the last dimension of the output dimension is still equal to the vocab size. Here, what we output are the raw logits, which have not yet undergone the softmax transformation. The softmax will be explained in detail later, and it is simply equivalent to performing probability normalization.
 
 # Model Overview
 
-至此，GPT-2的代码已经构建完成。让我们审视一下模型的细节，这里我们引入torchinfo包，只需summary一下，就能看到模型架构和参数，如下：
+By now, the code for GPT-2 has been fully constructed. Let's take a look at the details of the model. Here we introduce the torchinfo package, and by simply using summary, we can see the model architecture and parameters, as follows:
 
 ```
 from torchinfo import summary
@@ -602,17 +602,17 @@ from torchinfo import summary
 summary(model)
 ```
 
-> ================================================================= Layer (type:depth-idx) Param # ================================================================= GPT2Model -- ├─Embedding: 1-1 38,597,376 ├─Embedding: 1-2 786,432 ├─Dropout: 1-3 -- ├─Sequential: 1-4 -- │ └─TransformerBlock: 2-1 -- │ │ └─MultiHeadAttention: 3-1 2,360,064 │ │ └─FeedForward: 3-2 4,722,432 │ │ └─LayerNorm: 3-3 1,536 │ │ └─LayerNorm: 3-4 1,536 │ │ └─Dropout: 3-5 -- │ └─TransformerBlock: 2-2 -- │ │ └─MultiHeadAttention: 3-6 2,360,064 │ │ └─FeedForward: 3-7 4,722,432 │ │ └─LayerNorm: 3-8 1,536 │ │ └─LayerNorm: 3-9 1,536 │ │ └─Dropout: 3-10 -- ........(省略TransformerBlock2-3到2-11以节省篇幅) │ └─TransformerBlock: 2-12 -- │ │ └─MultiHeadAttention: 3-56 2,360,064 │ │ └─FeedForward: 3-57 4,722,432 │ │ └─LayerNorm: 3-58 1,536 │ │ └─LayerNorm: 3-59 1,536 │ │ └─Dropout: 3-60 -- ├─LayerNorm: 1-5 1,536 ├─Linear: 1-6 38,597,376 ================================================================= Total params: 163,009,536 Trainable params: 163,009,536 Non-trainable params: 0 =================================================================
+> ================================================================= Layer (type:depth-idx) Param # ================================================================= GPT2Model -- ├─Embedding: 1-1 38,597,376 ├─Embedding: 1-2 786,432 ├─Dropout: 1-3 -- ├─Sequential: 1-4 -- │ └─TransformerBlock: 2-1 -- │ │ └─MultiHeadAttention: 3-1 2,360,064 │ │ └─FeedForward: 3-2 4,722,432 │ │ └─LayerNorm: 3-3 1,536 │ │ └─LayerNorm: 3-4 1,536 │ │ └─Dropout: 3-5 -- │ └─TransformerBlock: 2-2 -- │ │ └─MultiHeadAttention: 3-6 2,360,064 │ │ └─FeedForward: 3-7 4,722,432 │ │ └─LayerNorm: 3-8 1,536 │ │ └─LayerNorm: 3-9 1,536 │ │ └─Dropout: 3-10 -- ........(Omit TransformerBlock2-3 to 2-11 to save space) │ └─TransformerBlock: 2-12 -- │ │ └─MultiHeadAttention: 3-56 2,360,064 │ │ └─FeedForward: 3-57 4,722,432 │ │ └─LayerNorm: 3-58 1,536 │ │ └─LayerNorm: 3-59 1,536 │ │ └─Dropout: 3-60 -- ├─LayerNorm: 1-5 1,536 ├─Linear: 1-6 38,597,376 ================================================================= Total params: 163,009,536 Trainable params: 163,009,536 Non-trainable params: 0 =================================================================
 
-可见，模型的层次是：
+It can be seen that the levels of the model are:
 
-1）总体结构：Token Embedding -> Position Embedding -> Dropout -> Transformer * 12 -> LayerNorm -> Linear；
+1) Overall Structure: Token Embedding -> Position Embedding -> Dropout -> Transformer * 12 -> LayerNorm -> Linear;
 
-2）Transformer结构： LayerNorm -> MHA -> Dropout-> LayerNorm -> FeedForward -> Dropout；这里的顺序summary的不太准确，可以代码为准。其中Dropout是可选的。
+2) Transformer Structure: LayerNorm -> MHA -> Dropout -> LayerNorm -> FeedForward -> Dropout; the order in the summary here is not very accurate and should be based on the code. Among them, Dropout is optional.
 
-并且也可以看到模型的总参数是163M。
+And it can also be seen that the total number of parameters of the model is 163M.
 
-其实，我们也可以用pytorch自带函数方便地计算模型参数，如下：
+Actually, we can also conveniently calculate model parameters using the built-in function of PyTorch, as follows:
 
 ```
 total_params = sum(p.numel() for p in model.parameters())
@@ -638,11 +638,11 @@ print(f"Total size of the model: {total_size_mb:.2f} MB")
 >
 > Total size of the model: 621.83 MB
 
-总参数同上，其中除了out_head之外的参数是124M；通常会去除out_head，原因是在gpt2中采用了共享参数，最后一层使用的out_head的权重tensor，其实就是直接用的token_embedding的tensor；所以可以去重这部分重复参数。因此，模型的可训练总参数是124M；总模型大小是621M；但其实核心代码仅有100行。
+The total parameters are the same as above, among which the parameters other than out_head are 124M; usually out_head is removed because in GPT2, shared parameters are used, and the weight tensor of out_head used in the last layer is actually the tensor of token_embedding directly; so this part of the duplicate parameters can be deduplicated. Therefore, the total trainable parameters of the model are 124M; the total model size is 621M; but in fact, the core code is only 100 lines.
 
 # Generate Text
 
-上面的gpt2代码虽然未经训练，其实结构是完整的，我们可以直接拿来测试下文本生成。当然，我们预期会生成词不达意的乱码水平。不过，测试输出，可以帮助我们检查代码问题，如下：
+Although the above GPT2 code has not been trained, its structure is actually complete, and we can directly use it to test text generation. Of course, we expect it to generate garbled text that fails to convey the intended meaning. However, the test output can help us check for code issues, as follows:
 
 ```
 def generate_text_simple(model, idx, max_new_tokens, context_size):
@@ -669,11 +669,11 @@ def generate_text_simple(model, idx, max_new_tokens, context_size):
     return idx
 ```
 
-在上面代码中，我们首先torch.no_grad()把torch的模式设置为evaluation阶段，而非训练阶段，避免自动计算梯度带来的额外开销。
+In the above code, we first use torch.no_grad() to set the torch mode to the evaluation phase instead of the training phase, avoiding the additional overhead caused by automatic gradient calculation.
 
-并且，每次只生成1个单词，因此我们每次只从生成的(batch, n_tokens, vocab_size)中提取最后一个token对应的50257维，即变成(batch, vocab_size)；我们把logits做softmax变换，然后从中挑出概率最大的值对应的id；这个id其实就是生成单词对应的token_id；其实这里softmax是多余的，即便只看原始的logits，从50257的维度中挑出最大的值对应的编号，也就是生成的单词对应的tokenId。因为softmax只是做了概率归一化，其实我们不关心值的大小，我们只想找出值最大的id即可。
+Moreover, only one word is generated each time, so we only extract the 50257 dimensions corresponding to the last token from the generated (batch, n_tokens, vocab_size) each time, which becomes (batch, vocab_size); we perform a softmax transformation on the logits, and then pick out the id corresponding to the value with the highest probability; this id is actually the token_id corresponding to the generated word; in fact, the softmax here is redundant, even if we only look at the original logits, picking out the number corresponding to the maximum value from the 50257 dimensions is also the tokenId corresponding to the generated word. Because softmax only performs probability normalization, in fact we don't care about the magnitude of the value, we just want to find the id with the maximum value.
 
-我们再实现下token_id张量到text的转换，就是Embedding章节提到的tokenizer encode与decode，如下：
+Let's implement the conversion from the token_id tensor to text again, which is the tokenizer encode and decode mentioned in the Embedding section, as follows:
 
 ```
 def text_to_tensor(text,tokenizer):
@@ -683,7 +683,7 @@ def tensor_to_text(tensor,tokenizer):
     return tokenizer.decode(tensor.squeeze(0).tolist())
 ```
 
-我们直接运行示例，让模型生成看看：
+Let's directly run the example and see what the model generates:
 
 ```
 start_context = "Once upon a time there"
@@ -706,9 +706,9 @@ decoded_text = tensor_to_text(out,tokenizer)
 print(decoded_text)
 ```
 
-我们输入了仅有1个batch、长度为5的的文本，先转换为token ids；并把模型改为eval模式，输入到模型中。我们设置了最多生成6个new token。
+We input a text with only 1 batch and a length of 5, first convert it to token ids; then change the model to eval mode and input it into the model. We set the maximum number of new tokens to be generated to 6.
 
-结果如下：
+The results are as follows:
 
 > encoded_tensor.shape: torch.Size([1, 5])
 >
@@ -720,6 +720,6 @@ print(decoded_text)
 >
 > Once upon a time there discriminated existing REALLY JehovahQUEST valve
 
-可见，model确实生成了6个新的token，不过看起来在胡言乱语。毕竟，这是未经过训练的模型，所有的权重还都是初始值。在这里，我们依然可以看到，虽然大家都知道模型训练成本极高，但其实eval推理模式的模型生成，成本还是比较低的。
+As can be seen, the model did generate 6 new tokens, but it seems to be babbling. After all, this is an untrained model, and all the weights are still at their initial values. Here, we can still see that although everyone knows that Model Training is extremely costly, in fact, the cost of model generation in the eval inference mode is still relatively low.
 
-至此，我们已经完成了gpt2模型的完整构建，只是目前尚不具备智能，但是已经具备了智慧体的必要连接和通路。相当于虽然只是一个婴儿，但是脑神经通路是完好的，后续经过训练，打通神经连接，就可以具备智能。
+So far, we have completed the full construction of the GPT2 model. Although it currently lacks intelligence, it already has the necessary connections and pathways of an intelligent agent. This is equivalent to a baby whose neural pathways are intact; subsequent Model Training to establish neural connections will enable it to acquire intelligence.

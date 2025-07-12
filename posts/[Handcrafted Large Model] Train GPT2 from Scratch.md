@@ -494,7 +494,7 @@ print("Validation loss:", val_loss)
 
 ## Train as normal
 
-而Finetune的过程与通常的train类似，代码如下：
+The process of Finetune is similar to the usual training, and the code is as follows:
 
 ```
 import torch
@@ -589,11 +589,11 @@ print(f"Training completed in {elapsed:.2f} minutes.")
 > Training completed in 11.32 minutes.
 > ```
 
-可见，仅仅通过1-2个epoch，模型就学会了遵从指令。
+It can be seen that the model learned to follow instructions after only 1-2 epochs.
 
-因为仅为了演示，数据量非常小，此处仅仅跑了2个epoch；有兴趣的可以增大数据量试试。
+Since this is just for demonstration and the data volume is very small, only 2 epochs were run here; those interested can try increasing the data volume.
 
-我们可以可视化看看loss的变化情况
+We can visualize the changes in the loss
 
 ```
 from gpt2_v2 import plot_losses
@@ -602,15 +602,15 @@ epochs_tensor = torch.linspace(0, num_epochs, len(train_losses))
 plot_losses(epochs_tensor, tokens_seen, train_losses, val_losses)
 ```
 
-![](https://p0-xtjj-private.juejin.cn/tos-cn-i-73owjymdk6/ec0fd64a8a4b4557bd1253361fe9ee2c~tplv-73owjymdk6-jj-mark-v1:0:0:0:0:5o6Y6YeR5oqA5pyv56S-5Yy6IEAgd2Vpa3Vv:q75.awebp?policy=eyJ2bSI6MywidWlkIjoiMjc4MTEwNzg2MjY0MTk2NCJ9&rk3s=e9ecf3d6&x-orig-authkey=f32326d3454f2ac7e96d3d06cdbb035152127018&x-orig-expires=1752401466&x-orig-sign=Kr7CORODeXozT9K3Ppn6FrXCTe0%3D)
+![](https://p0-xtjj-private.juejin.cn/tos-cn-i-73owjymdk6/11e6a2257b0347ec9cd7bca962d67aa7~tplv-73owjymdk6-jj-mark-v1:0:0:0:0:5o6Y6YeR5oqA5pyv56S-5Yy6IEAgd2Vpa3Vv:q75.awebp?policy=eyJ2bSI6MywidWlkIjoiMjc4MTEwNzg2MjY0MTk2NCJ9&rk3s=e9ecf3d6&x-orig-authkey=f32326d3454f2ac7e96d3d06cdbb035152127018&x-orig-expires=1752401678&x-orig-sign=pN4BmSk0hJPMA8cl%2FpKaxF30a4Q%3D)
 
-可见，loss在训练集上快速下降；但在测试集上下降不大；这也符合预期，毕竟为了演示目的，所用数据量太少。有兴趣的可以增大数据量试试。
+As can be seen, the loss drops rapidly on the training dataset, but not significantly on the test set; this is also in line with expectations, after all, for demonstration purposes, the amount of data used is too small. Those interested can try increasing the data volume.
 
 ## Save model
 
-对于训练好的模型，我们可以保存下来，便于下次加载重现，如下：
+For a trained model, we can save it for easy loading and reproduction next time, as follows:
 
-简单点就一行代码：
+For simplicity, it's just one line of code:
 
 ```
 file_name = "gpt2-124M-sft.pth"
@@ -618,7 +618,7 @@ torch.save(model.state_dict(), file_name)
 print(f"Model saved as {file_name}")
 ```
 
-而复杂点，我们可以保存其他描述性的参数，特别适用于模型训练过程中，如下：
+For more complex scenarios, we can save other descriptive parameters, which are particularly suitable for the Model Training process, as follows:
 
 ```
 # Save final model
@@ -636,17 +636,17 @@ torch.save({
 print(f"🎉 Training complete. Final model saved: {final_path}")
 ```
 
-存储模型的过程有点类似工程上的序列化与反序列化。可见，模型本质上就是神经网络结构+各层的参数。
+The process of storing a model is somewhat similar to serialization and deserialization in engineering. It can be seen that a model is essentially a neural network structure plus the parameters of each layer.
 
-而在较大数据量的训练中，有时候训练会意外中断，而为了使得训练结果不丢失，可以周期性地，如每个epoch结束，都保存下模型参数；这样便于中断后恢复，继续训练，节约时间和成本。
+During Model Training with a large amount of data, sometimes the training may unexpectedly interrupt. To prevent the loss of training results, model parameters can be saved periodically, for example, at the end of each epoch; this facilitates resuming training after an interruption, saving time and cost.
 
 # Evaluate model
 
-模型的效果到底如何，除了可以人工抽查、人工评估之外，我们还可以借助其他更强大的模型，来给我们的小模型评估打分。
+To evaluate the effectiveness of the model, in addition to manual spot checks and manual evaluation, we can also leverage other more powerful models to assess and score our small model.
 
 ## Generate response
 
-首先，我们跑test_data，拿测试问题输入模型，生成所有的答复，如下：
+First, we run test_data, input test questions into the model, and generate all responses, as follows:
 
 ```
 from tqdm import tqdm
@@ -676,9 +676,9 @@ with open("instruction-data-with-response.json", "w") as f:
 
 ## Run Ollama and Llama3
 
-接下来，我们下载并打开[ollama](https://ollama.com/)；Ollama 是一个开源工具，用于在本地计算机上运行、部署和管理 大型语言模型；官方支持了[DeepSeek-R1](https://ollama.com/library/deepseek-r1), [Qwen 3](https://ollama.com/library/qwen3), [Llama 3.3](https://ollama.com/library/llama3.3), [Qwen 2.5‑VL](https://ollama.com/library/qwen2.5vl), [Gemma 3](https://ollama.com/library/gemma3)等模型的本地部署与运行。使用过程非常简单，网上大量教程，此处不再赘述。
+Next, we download and open[ollama](https://ollama.com/); Ollama is an open-source tool for running, deploying, and managing large language models on local computers; it officially supports the local deployment and operation of models such as[DeepSeek-R1](https://ollama.com/library/deepseek-r1), [Qwen 3](https://ollama.com/library/qwen3), [Llama 3.3](https://ollama.com/library/llama3.3), [Qwen 2.5-VL](https://ollama.com/library/qwen2.5vl), [Gemma 3](https://ollama.com/library/gemma3). The usage process is very simple, and there are numerous online tutorials, so we will not elaborate further here.
 
-以下是简单地判断Ollama运行状态，以及本地发送http请求到llama3模型的代码：
+The following is the code for simply determining the running status of Ollama and sending an HTTP request locally to the llama3 model:
 
 ```
 import psutil
@@ -741,11 +741,11 @@ data = {
     return "".join(response_text)
 ```
 
-上述代码非常简单，就是拼装参数，发送http请求到本地的llama3模型上。
+The above code is very simple, just assembling parameters and sending an HTTP request to the local Llama3 model.
 
-此处，我们选择llama3作为我们的裁判模型，因为gpt2有1.5B参数，而llama3有8B参数，性能上有显著提升。
+Here, we choose llama3 as our referee model because gpt2 has 1.5B parameters while llama3 has 8B parameters, with a significant improvement in performance.
 
-我们可以简单测试下上述代码，问llama3模型一个简单的问题，如下：
+We can simply test the above code by asking the Llama3 model a simple question, as follows:
 
 ```
 result = query_model("What do Llamas eat?", "llama3")
@@ -770,11 +770,11 @@ print(result)
 > In captivity, llama owners typically provide a balanced diet that includes a mix of hay, grains, and fruits/vegetables. It's essential to consult with a veterinarian or experienced llama breeder to determine the best feeding plan for your llama.
 > ```
 
-可见，llama3在本地运行正常，且其输出质量还是相当高的。
+It can be seen that llama3 runs normally locally, and its output quality is still quite high.
 
 ## Evaluate by scores
 
-最后，我们写个prompt，让llama3给我们的gpt2生成的response进行打分，如下：
+Finally, we write a prompt to ask Llama3 to score the response generated by GPT2 for us, as follows:
 
 ```
 from tqdm import tqdm
@@ -815,6 +815,6 @@ print(f"Average: {sum(scores)/len(scores):.2f}, Max: {max(scores)}, Min: {min(sc
 >
 > Average: 56.62, Max: 85, Min: 0
 
-排除掉一些输出格式错误，平均得分56；虽然没及格，但是不算太差；至少说明模型比最开始的胡说八道进步不小。
+After excluding some output format errors, the average score is 56; although it didn't pass, it's not too bad; at least it shows that the model has improved significantly compared to its initial nonsense.
 
-至此，我们已经完整地学会了如何构建gpt2代码、训练模型和微调模型的必备技能。文章仅是演示用途，可以自行扩大数据集，放到更高性能的GPU上训练、微调，体验更多大模型的乐趣。
+By now, we have fully learned the essential skills for building GPT2 code, training models, and fine-tuning models. This article is for demonstration purposes only. You can expand the dataset on your own, train and fine-tune it on a higher-performance GPU, and experience more fun with large models.

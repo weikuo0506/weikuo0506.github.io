@@ -82,7 +82,7 @@ print(X)
 
 Obtain a 5*4 two-dimensional matrix, as follows:
 
-![](https://p0-xtjj-private.juejin.cn/tos-cn-i-73owjymdk6/3b6ce9805336457f83bbc11cc97b5a62~tplv-73owjymdk6-jj-mark-v1:0:0:0:0:5o6Y6YeR5oqA5pyv56S-5Yy6IEAgd2Vpa3Vv:q75.awebp?policy=eyJ2bSI6MywidWlkIjoiMjc4MTEwNzg2MjY0MTk2NCJ9&rk3s=e9ecf3d6&x-orig-authkey=f32326d3454f2ac7e96d3d06cdbb035152127018&x-orig-expires=1752401177&x-orig-sign=t%2BngzBtUh0CLuRspMA1bygXG%2B74%3D)
+![](https://p0-xtjj-private.juejin.cn/tos-cn-i-73owjymdk6/c57cb22bf95f4d14b30f05517ee77ddf~tplv-73owjymdk6-jj-mark-v1:0:0:0:0:5o6Y6YeR5oqA5pyv56S-5Yy6IEAgd2Vpa3Vv:q75.awebp?policy=eyJ2bSI6MywidWlkIjoiMjc4MTEwNzg2MjY0MTk2NCJ9&rk3s=e9ecf3d6&x-orig-authkey=f32326d3454f2ac7e96d3d06cdbb035152127018&x-orig-expires=1752401940&x-orig-sign=I1lJWF%2BAsZeClMDhHJCP1U5MgCk%3D)
 
 ## Q K V matrix
 
@@ -162,7 +162,7 @@ print("scores:", scores)
 
 In the above example, the dimensions of Q and K are [5,4]. Transposing K results in dimensions [4,5]. Taking the dot product of the two yields a matrix of [5,5].
 
-*Note: What is actually done here is batch dot product, i.e., matrix multiplication is used.*
+*Note: What is actually done here is* *batch* ***dot product* *, i.e.,* *matrix* *multiplication is used.*
 
 ## Scaled Scores
 
@@ -209,7 +209,7 @@ plt.plot(x.numpy(), softmax_vals[:,0].numpy())
 plt.show()
 ```
 
-![](https://p0-xtjj-private.juejin.cn/tos-cn-i-73owjymdk6/7a5d7e15fad84dc79256811554f6d9f3~tplv-73owjymdk6-jj-mark-v1:0:0:0:0:5o6Y6YeR5oqA5pyv56S-5Yy6IEAgd2Vpa3Vv:q75.awebp?policy=eyJ2bSI6MywidWlkIjoiMjc4MTEwNzg2MjY0MTk2NCJ9&rk3s=e9ecf3d6&x-orig-authkey=f32326d3454f2ac7e96d3d06cdbb035152127018&x-orig-expires=1752401177&x-orig-sign=KXEuMkRFkPRLcXkKeWwyE1MG%2FZg%3D)
+![](https://p0-xtjj-private.juejin.cn/tos-cn-i-73owjymdk6/b0fa71d099a84ec7bd32455792b9818c~tplv-73owjymdk6-jj-mark-v1:0:0:0:0:5o6Y6YeR5oqA5pyv56S-5Yy6IEAgd2Vpa3Vv:q75.awebp?policy=eyJ2bSI6MywidWlkIjoiMjc4MTEwNzg2MjY0MTk2NCJ9&rk3s=e9ecf3d6&x-orig-authkey=f32326d3454f2ac7e96d3d06cdbb035152127018&x-orig-expires=1752401940&x-orig-sign=XJMGpm5CwYGomyv7dGqFqs6y%2FSE%3D)
 
 It can be seen that the softmax function compresses all inputs into the range (0, 1), making them look more like probability values.
 
@@ -604,7 +604,7 @@ Please pay special attention that the dimension of the finally generated context
 
 So far, we have completed [the complete calculation of single-head attention in the Attention paper ](https://arxiv.org/pdf/1706.03762).
 
-![](https://p0-xtjj-private.juejin.cn/tos-cn-i-73owjymdk6/9254422264e74662a09eb132d60682f0~tplv-73owjymdk6-jj-mark-v1:0:0:0:0:5o6Y6YeR5oqA5pyv56S-5Yy6IEAgd2Vpa3Vv:q75.awebp?policy=eyJ2bSI6MywidWlkIjoiMjc4MTEwNzg2MjY0MTk2NCJ9&rk3s=e9ecf3d6&x-orig-authkey=f32326d3454f2ac7e96d3d06cdbb035152127018&x-orig-expires=1752401177&x-orig-sign=WgDbaP8HI5EKe4o4Hi%2BiEeVOuoM%3D)
+![](https://p0-xtjj-private.juejin.cn/tos-cn-i-73owjymdk6/25280eb13c12476592d8345fe5d5cfd0~tplv-73owjymdk6-jj-mark-v1:0:0:0:0:5o6Y6YeR5oqA5pyv56S-5Yy6IEAgd2Vpa3Vv:q75.awebp?policy=eyJ2bSI6MywidWlkIjoiMjc4MTEwNzg2MjY0MTk2NCJ9&rk3s=e9ecf3d6&x-orig-authkey=f32326d3454f2ac7e96d3d06cdbb035152127018&x-orig-expires=1752401940&x-orig-sign=xMgEUKjlOFd5TywQIT2D9eaQ%2BTY%3D)
 
 # Multi-Head Attention
 
@@ -909,7 +909,7 @@ print(X)
 
 Obtain a 5*4 two-dimensional matrix, as follows:
 
-![](https://p0-xtjj-private.juejin.cn/tos-cn-i-73owjymdk6/58689084bcf54c70b3fe873cc76d417e~tplv-73owjymdk6-jj-mark-v1:0:0:0:0:5o6Y6YeR5oqA5pyv56S-5Yy6IEAgd2Vpa3Vv:q75.awebp?policy=eyJ2bSI6MywidWlkIjoiMjc4MTEwNzg2MjY0MTk2NCJ9&rk3s=e9ecf3d6&x-orig-authkey=f32326d3454f2ac7e96d3d06cdbb035152127018&x-orig-expires=1752401177&x-orig-sign=qAcAM0pZIMgg7%2FG50QAeOPMUT3I%3D)
+![](https://p0-xtjj-private.juejin.cn/tos-cn-i-73owjymdk6/ee944a4110d44a8e9805660762805311~tplv-73owjymdk6-jj-mark-v1:0:0:0:0:5o6Y6YeR5oqA5pyv56S-5Yy6IEAgd2Vpa3Vv:q75.awebp?policy=eyJ2bSI6MywidWlkIjoiMjc4MTEwNzg2MjY0MTk2NCJ9&rk3s=e9ecf3d6&x-orig-authkey=f32326d3454f2ac7e96d3d06cdbb035152127018&x-orig-expires=1752401941&x-orig-sign=hGHZfHlgyr8sz0WpNNH6nTOeO2M%3D)
 
 ## Q K V matrix
 
@@ -1036,7 +1036,7 @@ plt.plot(x.numpy(), softmax_vals[:,0].numpy())
 plt.show()
 ```
 
-![](https://p0-xtjj-private.juejin.cn/tos-cn-i-73owjymdk6/2e41f919615f42bba8e4860766fcfabe~tplv-73owjymdk6-jj-mark-v1:0:0:0:0:5o6Y6YeR5oqA5pyv56S-5Yy6IEAgd2Vpa3Vv:q75.awebp?policy=eyJ2bSI6MywidWlkIjoiMjc4MTEwNzg2MjY0MTk2NCJ9&rk3s=e9ecf3d6&x-orig-authkey=f32326d3454f2ac7e96d3d06cdbb035152127018&x-orig-expires=1752401177&x-orig-sign=C2naHF%2Bsa2mNx4CCwOh4PfuCiQQ%3D)
+![](https://p0-xtjj-private.juejin.cn/tos-cn-i-73owjymdk6/d8f90d3ab562453eabc11f4159e3ef84~tplv-73owjymdk6-jj-mark-v1:0:0:0:0:5o6Y6YeR5oqA5pyv56S-5Yy6IEAgd2Vpa3Vv:q75.awebp?policy=eyJ2bSI6MywidWlkIjoiMjc4MTEwNzg2MjY0MTk2NCJ9&rk3s=e9ecf3d6&x-orig-authkey=f32326d3454f2ac7e96d3d06cdbb035152127018&x-orig-expires=1752401940&x-orig-sign=4APiNMhA2w99xFa6vM1DIUCeo1M%3D)
 
 It can be seen that the softmax function compresses all inputs into the range (0, 1), making them look more like probability values.
 
@@ -1431,7 +1431,7 @@ Please pay special attention that the dimension of the finally generated context
 
 So far, we have completed [the complete calculation of single-head attention in the Attention paper ](https://arxiv.org/pdf/1706.03762).
 
-![](https://p0-xtjj-private.juejin.cn/tos-cn-i-73owjymdk6/f09ee9c02a614d96b28c4a0cdb6557bb~tplv-73owjymdk6-jj-mark-v1:0:0:0:0:5o6Y6YeR5oqA5pyv56S-5Yy6IEAgd2Vpa3Vv:q75.awebp?policy=eyJ2bSI6MywidWlkIjoiMjc4MTEwNzg2MjY0MTk2NCJ9&rk3s=e9ecf3d6&x-orig-authkey=f32326d3454f2ac7e96d3d06cdbb035152127018&x-orig-expires=1752401177&x-orig-sign=Mor%2Br%2FXPVPCC%2Fotxso16lkxOOrw%3D)
+![](https://p0-xtjj-private.juejin.cn/tos-cn-i-73owjymdk6/40fe4d1c57374a06ad35ed9e0f5f025c~tplv-73owjymdk6-jj-mark-v1:0:0:0:0:5o6Y6YeR5oqA5pyv56S-5Yy6IEAgd2Vpa3Vv:q75.awebp?policy=eyJ2bSI6MywidWlkIjoiMjc4MTEwNzg2MjY0MTk2NCJ9&rk3s=e9ecf3d6&x-orig-authkey=f32326d3454f2ac7e96d3d06cdbb035152127018&x-orig-expires=1752401940&x-orig-sign=34ieOhczJrCA0RJKxWAJeYCO7Ho%3D)
 
 # Multi-Head Attention
 
@@ -1625,12 +1625,12 @@ print("context_vecs:\n", context_vecs)
 >
 > grad_fn=<ViewBackward0>)
 
-相比之前：
+Compared to before:
 
-1） 使用了统一的大矩阵W_Q做投影，然后通过view操作split到多个head中。
+1) A unified large matrix W_Q is used for projection, and then split into multiple heads through the view operation.
 
-2）对output额外做了一层线性映射，以进一步融合多头。不过这一步并非严格必须的。
+2) An additional linear mapping was applied to the output to further fuse the multi-heads. However, this step is not strictly necessary.
 
-在操作过程中，我们应该特别留意tensor维度的变化。只要看懂tensor维度的变化，就基本搞清楚了整个计算的逻辑。
+During the operation, we should pay special attention to the changes in tensor dimensions. As long as we understand the changes in tensor dimensions, we can basically figure out the logic of the entire computation.
 
-至此，我们已经完成了MHA的代码实现，也是GPT2的Transformer架构中最核心的实现。
+By now, we have completed the code implementation of MHA, which is also the most core implementation in the Transformer architecture of GPT2.
