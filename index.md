@@ -34,6 +34,7 @@ I specialize in building scalable, intelligent platforms across ad tech, data in
 ---
 
 ## 📚 Blog Posts
+- [Build Llama3 from Stratch](https://weikuo0506.github.io/posts/HandcraftedLLM/BuildLlama3FromScratch/)(2025)
 - [Build Llama2 from Stratch](https://weikuo0506.github.io/posts/HandcraftedLLM/BuildLlama2FromScratch/)(2025)
 - [Build, Train and Finetune GPT2 from Stratch](https://weikuo0506.github.io/posts/HandcraftedLLM/GPT2-Series/)(2025)
 - [Building Enhanced QA with LangChain + LLM](https://developer.aliyun.com/article/1246744) (2023)
